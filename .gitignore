@@ -3,5 +3,9 @@
 .DS_Store
 .*
 *~
+test.bin
+test.index
+*k.json
 
 !.gitignore
+!100k.json
