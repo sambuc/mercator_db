@@ -2,13 +2,10 @@
 extern crate measure_time;
 
 #[macro_use]
-extern crate arrayref;
-
-#[macro_use]
 extern crate serde_derive;
 
-mod storage;
-
+use mercator_db::json::model;
+use mercator_db::json::storage;
 use mercator_db::space::Shape;
 use mercator_db::DataBase;
 
@@ -22,28 +19,26 @@ fn main() {
     // Convert to binary the JSON data:
     if true {
         info_time!("Converting to binary JSON data");
-        storage::convert("test");
+        storage::convert("10k");
     }
 
     // Build a Database Index:
     if true {
         info_time!("Building database index");
-        storage::build("test");
+        storage::build("10k");
     }
 
     // Load a Database:
     let db;
     {
         info_time!("Loading database index");
-        db = DataBase::load("test").unwrap();
+        db = DataBase::load("10k").unwrap();
     }
 
     if true {
-        let core = db.core("test").unwrap();
-        // 100k
-        let space = db.space("space0.146629817062").unwrap();
-        //let id = "oid0.606846546049";
-        let id = "oid0.732128500546";
+        let core = db.core("10k").unwrap();
+        let space = db.space("std").unwrap();
+        let id = "oid0.5793259558369925";
 
         let r = core.get_by_id(&db, id, None, std::f64::MAX).unwrap();
         println!("get_by_id {}: {}", id, r.len());

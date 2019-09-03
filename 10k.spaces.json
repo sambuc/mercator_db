@@ -1,0 +1,36 @@
+[ {
+  "name": "std",
+  "origin": [ 0.0, 0.0, 0.0 ],
+  "axes": [
+    {
+      "measurement_unit": "mm",
+      "graduation": {
+        "set": "N",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "steps": 1000000000
+      },
+      "unit_vector": [ 1.0, 0.0, 0.0 ]
+    },
+    {
+      "measurement_unit": "mm",
+      "graduation": {
+        "set": "N",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "steps": 1000000000
+      },
+      "unit_vector": [ 0.0, 1.0, 0.0 ]
+    },
+    {
+      "measurement_unit": "mm",
+      "graduation": {
+        "set": "N",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "steps": 1000000000
+      },
+      "unit_vector": [ 0.0, 0.0, 1.0 ]
+    }
+  ]
+} ]

@@ -73,6 +73,7 @@ impl PartialEq for SpaceObject {
 impl Eq for SpaceObject {}
 
 impl Hash for SpaceObject {
+    //FIXME: ADD HASHING IMPLEMENTATION, REQUIRED FOR distinct()!
     fn hash<H: Hasher>(&self, state: &mut H) {
         unimplemented!()
     }

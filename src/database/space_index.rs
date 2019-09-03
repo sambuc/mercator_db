@@ -22,11 +22,6 @@ impl SpaceSetObject {
         }
     }
 
-    /*
-        pub fn eval(&self, _predicate: &Predicate) -> bool {
-            false
-        }
-    */
     pub fn id(&self) -> &Coordinate {
         &self.value
     }
