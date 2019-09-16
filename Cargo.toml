@@ -46,5 +46,6 @@ bincode = "^1.1"
 measure_time = "^0.6" # To mesure parsing time, only required by binary
 
 # Logging macros API
-log = { version = "^0.4", features = ["max_level_trace", "release_max_level_info"] }
+#log = { version = "^0.4", features = ["max_level_trace", "release_max_level_info"] }
+log = { version = "^0.4", features = ["max_level_trace", "release_max_level_trace"] }
 pretty_env_logger = "^0.3"       # Logger implementation
