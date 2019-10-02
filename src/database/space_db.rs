@@ -85,13 +85,33 @@ impl SpaceDB {
     // Returns the index to be used by default for the given volume.
     // The index chosen by default will be the one with the smallest volume
     // threshold which is greater or equal to the query volume.
-    pub fn default_resolution(&self, volume: f64) -> usize {
+    fn default_resolution(&self, volume: f64) -> usize {
         for i in 0..self.resolutions.len() {
             if volume <= self.resolutions[i].threshold() {
                 return i;
             }
         }
         self.resolutions.len()
+    }
+
+    fn find_resolution(&self, _scales: &[u64]) -> usize {
+        // FIXME: Implement stuff here!
+        self.lowest_resolution()
+    }
+
+    pub fn get_resolution(
+        &self,
+        threshold_volume: &Option<f64>,
+        resolution: &Option<Vec<u64>>,
+    ) -> usize {
+        if let Some(threshold_volume) = threshold_volume {
+            self.default_resolution(*threshold_volume)
+        } else {
+            match resolution {
+                None => self.lowest_resolution(),
+                Some(v) => self.find_resolution(v),
+            }
+        }
     }
 
     // Convert the value back to caller's references
@@ -107,13 +127,14 @@ impl SpaceDB {
     pub fn get_by_id(
         &self,
         id: usize,
-        threshold_volume: f64,
+        threshold_volume: &Option<f64>,
+        resolution: &Option<Vec<u64>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
         // Is that ID referenced in the current space?
         if let Ok(offset) = self.values.binary_search(&id.into()) {
-            let resolution = self.default_resolution(threshold_volume);
+            let index = self.get_resolution(threshold_volume, resolution);
 
-            let mut results = self.resolutions[resolution]
+            let mut results = self.resolutions[index]
                 .find_by_value(&SpaceFields::new(self.name().into(), offset.into()));
 
             // Convert the Value back to caller's references
@@ -132,13 +153,14 @@ impl SpaceDB {
     pub fn get_by_positions(
         &self,
         positions: &[Position],
-        threshold_volume: f64,
+        threshold_volume: &Option<f64>,
+        resolution: &Option<Vec<u64>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
-        let resolution = self.default_resolution(threshold_volume);
+        let index = self.get_resolution(threshold_volume, resolution);
 
         let results = positions
             .iter()
-            .flat_map(|position| self.resolutions[resolution].find(position))
+            .flat_map(|position| self.resolutions[index].find(position))
             .collect::<Vec<SpaceSetObject>>();
 
         Ok(self.decode(results))
@@ -151,9 +173,11 @@ impl SpaceDB {
     pub fn get_by_shape(
         &self,
         shape: &Shape,
-        threshold_volume: f64,
+        threshold_volume: &Option<f64>,
+        resolution: &Option<Vec<u64>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
-        let resolution = self.default_resolution(threshold_volume);
-        Ok(self.decode(self.resolutions[resolution].find_by_shape(&shape)?))
+        let index = self.get_resolution(threshold_volume, resolution);
+
+        Ok(self.decode(self.resolutions[index].find_by_shape(&shape)?))
     }
 }

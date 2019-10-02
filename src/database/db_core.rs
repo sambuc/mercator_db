@@ -7,6 +7,13 @@ use super::DataBase;
 use super::ResultSet;
 use crate::SpaceObject;
 
+pub struct CoreQueryParameters<'a> {
+    pub db: &'a DataBase,
+    pub output_space: Option<&'a str>,
+    pub threshold_volume: Option<f64>,
+    pub resolution: Option<Vec<u64>>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Properties {
     Feature(String),
@@ -149,9 +156,9 @@ impl Core {
         list: &mut [SpaceObject],
         space: &Space,
         db: &DataBase,
-        output_space: Option<&str>,
+        output_space: &Option<&str>,
     ) -> Result<(), String> {
-        if let Some(unified_id) = output_space {
+        if let Some(unified_id) = *output_space {
             let unified = db.space(unified_id)?;
 
             // Rebase the point to the requested output space before decoding.
@@ -177,12 +184,17 @@ impl Core {
     // Positions ARE DEFINED IN F64 VALUES IN THE SPACE. NOT ENCODED!
     pub fn get_by_positions(
         &self,
-        db: &DataBase,
+        parameters: &CoreQueryParameters,
         positions: &[Position],
         from: &str,
-        output_space: Option<&str>,
-        threshold_volume: f64,
     ) -> ResultSet {
+        let CoreQueryParameters {
+            db,
+            output_space,
+            threshold_volume,
+            resolution,
+        } = parameters;
+
         let mut results = vec![];
         let count = positions.len();
         let from = db.space(from)?;
@@ -196,7 +208,7 @@ impl Core {
                 p.push(to.encode(&position)?);
             }
 
-            let r = s.get_by_positions(&p, threshold_volume)?;
+            let r = s.get_by_positions(&p, threshold_volume, resolution)?;
             let mut r = self.to_space_object(s.name(), r);
 
             Self::decode_positions(&mut r, to, db, output_space)?;
@@ -215,12 +227,17 @@ impl Core {
     // SHAPE IS DEFINED IN F64 VALUES IN THE SPACE. NOT ENCODED!
     pub fn get_by_shape(
         &self,
-        db: &DataBase,
+        parameters: &CoreQueryParameters,
         shape: &Shape,
         space_id: &str,
-        output_space: Option<&str>,
-        threshold_volume: f64,
     ) -> ResultSet {
+        let CoreQueryParameters {
+            db,
+            output_space,
+            threshold_volume,
+            resolution,
+        } = parameters;
+
         let mut results = vec![];
         let shape_space = db.space(space_id)?;
 
@@ -232,7 +249,7 @@ impl Core {
             //            let current_shape = shape.encode(current_space)?;
             //            println!("current shape Encoded: {:?}", current_shape);
 
-            let r = s.get_by_shape(&current_shape, threshold_volume)?;
+            let r = s.get_by_shape(&current_shape, threshold_volume, resolution)?;
             let mut r = self.to_space_object(s.name(), r);
 
             Self::decode_positions(&mut r, current_space, db, output_space)?;
@@ -244,16 +261,17 @@ impl Core {
     }
 
     // Search by Id, a.k.a values
-    pub fn get_by_id<S>(
-        &self,
-        db: &DataBase,
-        id: S,
-        output_space: Option<&str>,
-        threshold_volume: f64,
-    ) -> ResultSet
+    pub fn get_by_id<S>(&self, parameters: &CoreQueryParameters, id: S) -> ResultSet
     where
         S: Into<String>,
     {
+        let CoreQueryParameters {
+            db,
+            output_space,
+            threshold_volume,
+            resolution,
+        } = parameters;
+
         let id: String = id.into();
         let mut results = vec![];
 
@@ -267,7 +285,7 @@ impl Core {
             for s in &self.space_db {
                 let current_space = db.space(s.name())?;
 
-                let r = s.get_by_id(offset, threshold_volume)?;
+                let r = s.get_by_id(offset, threshold_volume, resolution)?;
                 let mut r = self.to_space_object(s.name(), r);
 
                 Self::decode_positions(&mut r, current_space, db, output_space)?;
@@ -281,16 +299,17 @@ impl Core {
 
     // Search by Label, a.k.a within a volume defined by the positions of an Id.
     // FIXME: NEED TO KEEP TRACK OF SPACE IDS AND DO CONVERSIONS
-    pub fn get_by_label<S>(
-        &self,
-        db: &DataBase,
-        id: S,
-        output_space: Option<&str>,
-        threshold_volume: f64,
-    ) -> ResultSet
+    pub fn get_by_label<S>(&self, parameters: &CoreQueryParameters, id: S) -> ResultSet
     where
         S: Into<String>,
     {
+        let CoreQueryParameters {
+            db,
+            output_space,
+            threshold_volume,
+            resolution,
+        } = parameters;
+
         let id: String = id.into();
         let mut results = vec![];
 
@@ -304,10 +323,12 @@ impl Core {
             let search_volume = self
                 .space_db
                 .iter()
-                .filter_map(|s| match s.get_by_id(offset, threshold_volume) {
-                    Ok(v) => Some(v),
-                    Err(_) => None,
-                })
+                .filter_map(
+                    |s| match s.get_by_id(offset, threshold_volume, resolution) {
+                        Ok(v) => Some(v),
+                        Err(_) => None,
+                    },
+                )
                 .flat_map(|v| v)
                 .map(|o| o.position().clone())
                 .collect::<Vec<_>>();
@@ -339,7 +360,7 @@ impl Core {
             for s in &self.space_db {
                 let to = db.space(s.name())?;
 
-                let r = s.get_by_positions(&search_volume, threshold_volume)?;
+                let r = s.get_by_positions(&search_volume, threshold_volume, resolution)?;
                 let mut r = self.to_space_object(s.name(), r);
 
                 Self::decode_positions(&mut r, to, db, output_space)?;

@@ -1,12 +1,9 @@
 #[macro_use]
 extern crate measure_time;
 
-#[macro_use]
-extern crate serde_derive;
-
-use mercator_db::json::model;
 use mercator_db::json::storage;
 use mercator_db::space::Shape;
+use mercator_db::CoreQueryParameters;
 use mercator_db::DataBase;
 
 fn main() {
@@ -39,16 +36,33 @@ fn main() {
         let core = db.core("10k").unwrap();
         let space = db.space("std").unwrap();
         let id = "oid0.5793259558369925";
-
-        let r = core.get_by_id(&db, id, None, std::f64::MAX).unwrap();
+        let c = CoreQueryParameters {
+            db: &db,
+            output_space: None,
+            threshold_volume: Some(std::f64::MAX),
+            resolution: None,
+        };
+        let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
         println!("{}: {:?}\n", id, r[0]);
 
-        let r = core.get_by_id(&db, id, None, 0.0).unwrap();
+        let c = CoreQueryParameters {
+            db: &db,
+            output_space: None,
+            threshold_volume: Some(0.0),
+            resolution: None,
+        };
+        let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
         println!("{}: {:?}\n", id, r[0]);
 
-        let r = core.get_by_label(&db, id, None, std::f64::MAX).unwrap();
+        let c = CoreQueryParameters {
+            db: &db,
+            output_space: None,
+            threshold_volume: Some(std::f64::MAX),
+            resolution: None,
+        };
+        let r = core.get_by_label(&c, id).unwrap();
         println!("get_by_label {}: {}", id, r.len());
         if !r.is_empty() {
             println!("{}: {:?}\n", id, r[0]);
@@ -59,7 +73,13 @@ fn main() {
 
         let shape = Shape::BoundingBox(lower, higher);
 
-        let r = core.get_by_shape(&db, &shape, "std", None, 0.0).unwrap();
+        let c = CoreQueryParameters {
+            db: &db,
+            output_space: None,
+            threshold_volume: Some(0.0),
+            resolution: None,
+        };
+        let r = core.get_by_shape(&c, &shape, "std").unwrap();
         println!("get_by_shape {:?}: {}", shape, r.len());
         println!("{:?}: {:?}\n", shape, r[0]);
 

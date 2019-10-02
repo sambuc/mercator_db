@@ -12,6 +12,7 @@ use ironsea_table_vector::VectorTable;
 use memmap::Mmap;
 
 pub use db_core::Core;
+pub use db_core::CoreQueryParameters;
 pub use db_core::Properties;
 use space::Position;
 use space::Space;
