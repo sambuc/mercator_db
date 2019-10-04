@@ -138,9 +138,7 @@ impl DataBase {
     }
 
     pub fn load_core(name: &str) -> Result<(Vec<Space>, Core), String> {
-        let fn_index = format!("{}.index", name);
-
-        let mmap = DataBase::mmap_file(&fn_index)?;
+        let mmap = DataBase::mmap_file(&name)?;
 
         match bincode::deserialize(&mmap[..]) {
             Err(e) => Err(format!("Index deserialization error: {:?}", e)),

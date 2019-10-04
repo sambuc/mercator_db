@@ -29,7 +29,7 @@ fn main() {
     let db;
     {
         info_time!("Loading database index");
-        db = DataBase::load(&["10k"]).unwrap();
+        db = DataBase::load(&["10k.index"]).unwrap();
     }
 
     if true {
