@@ -3,7 +3,7 @@ use super::coordinate::Coordinate;
 use super::position::Position;
 use super::MAX_K;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum CoordinateSystem {
     Universe,
     // Coordinates in Universe, expressed in f64, and in the Universe number of dimensions.

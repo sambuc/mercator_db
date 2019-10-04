@@ -1,7 +1,7 @@
 use super::coordinate::Coordinate;
 use super::position::Position;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum NumberSet {
     N,
     Z,
@@ -34,7 +34,7 @@ impl From<NumberSet> for String {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Graduation {
     pub set: NumberSet,
     pub minimum: f64,
@@ -56,7 +56,7 @@ impl Graduation {
 }
 
 // TODO: In the future this might become an Enum with AffineAxis, ArbitraryAxis, etc...
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Axis {
     measurement_unit: String,
     graduation: Graduation,

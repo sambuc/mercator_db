@@ -24,7 +24,7 @@ lazy_static! {
     };
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Space {
     name: String,
     system: CoordinateSystem,

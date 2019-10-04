@@ -3,6 +3,7 @@ pub mod space;
 mod space_db;
 mod space_index;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -94,26 +95,56 @@ impl DataBase {
         }
     }
 
-    pub fn load<S>(name: S) -> Result<Self, String>
-    where
-        S: Into<String>,
-    {
-        let name = name.into();
-        let fn_index = format!("{}.index", name);
+    pub fn load(indices: &[&str]) -> Result<Self, String> {
+        let mut spaces = HashMap::new();
+        let mut cores = vec![];
 
-        let file_in = match File::open(fn_index) {
+        for index in indices.iter() {
+            let (core_spaces, core) = DataBase::load_core(index)?;
+            for core_space in core_spaces {
+                if let Some(space) = spaces.get(core_space.name()) {
+                    // Space is already registered, but with a different definitions.
+                    if space != &core_space {
+                        return Err(format!(
+                            "Reference Space ID `{}` defined two times, but differently\n{:?}\n VS \n{:?}",
+                            core_space.name(),
+                            spaces.get(core_space.name()),
+                            core_space
+                        ));
+                    }
+                } else {
+                    spaces.insert(core_space.name().clone(), core_space);
+                }
+            }
+
+            cores.push(core);
+        }
+
+        let spaces = spaces.drain().map(|(_, v)| v).collect();
+
+        Ok(DataBase::new(spaces, cores))
+    }
+
+    fn mmap_file(filename: &str) -> Result<Mmap, String> {
+        let file_in = match File::open(filename) {
             Err(e) => return Err(format!("{:?}", e)),
             Ok(file) => file,
         };
 
-        let mmap = match unsafe { Mmap::map(&file_in) } {
-            Err(e) => return Err(format!("{:?}", e)),
-            Ok(mmap) => mmap,
-        };
+        match unsafe { Mmap::map(&file_in) } {
+            Err(e) => Err(format!("{:?}", e)),
+            Ok(mmap) => Ok(mmap),
+        }
+    }
+
+    pub fn load_core(name: &str) -> Result<(Vec<Space>, Core), String> {
+        let fn_index = format!("{}.index", name);
+
+        let mmap = DataBase::mmap_file(&fn_index)?;
 
         match bincode::deserialize(&mmap[..]) {
             Err(e) => Err(format!("Index deserialization error: {:?}", e)),
-            Ok(db) => Ok(db),
+            Ok(index) => Ok(index),
         }
     }
 

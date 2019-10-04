@@ -5,7 +5,6 @@ use memmap::Mmap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::database::DataBase;
 use crate::json::model;
 
 pub fn from_json<T>(from: &str, to: &str)
@@ -75,7 +74,7 @@ pub fn convert(name: &str) {
     from_json::<Vec<model::SpatialObject>>(&fn_in, &fn_out);
 }
 
-pub fn build(name: &str) {
+pub fn build(name: &str, version: &str) {
     let fn_spaces = format!("{}.spaces.bin", name);
     let fn_objects = format!("{}.objects.bin", name);
     let fn_index = format!("{}.index", name);
@@ -85,11 +84,12 @@ pub fn build(name: &str) {
         .map(|s| s.into())
         .collect::<Vec<_>>();
 
-    let cores = model::build_index(
-        &name,
+    let core = model::build_index(
+        name,
+        version,
         &spaces,
         &load::<Vec<model::SpatialObject>>(&fn_objects),
     );
 
-    store(DataBase::new(spaces, cores), &fn_index);
+    store((spaces, core), &fn_index);
 }

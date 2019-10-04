@@ -157,7 +157,12 @@ pub fn to_spatial_objects(db: &DataBase, list: Vec<SpaceObject>) -> Vec<SpatialO
     results
 }
 
-pub fn build_index(name: &str, spaces: &[space::Space], objects: &[SpatialObject]) -> Vec<Core> {
+pub fn build_index(
+    name: &str,
+    version: &str,
+    spaces: &[space::Space],
+    objects: &[SpatialObject],
+) -> Core {
     let mut properties = vec![];
     let mut space_set_objects = vec![];
 
@@ -205,11 +210,5 @@ pub fn build_index(name: &str, spaces: &[space::Space], objects: &[SpatialObject
         object.set_value(value.into());
     });
 
-    vec![Core::new(
-        name,
-        "v0.1",
-        spaces,
-        properties,
-        space_set_objects,
-    )]
+    Core::new(name, version, spaces, properties, space_set_objects)
 }
