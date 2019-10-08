@@ -28,10 +28,10 @@ impl Properties {
         }
     }
 
-    pub fn type_name(&self) -> String {
+    pub fn type_name(&self) -> &str {
         match self {
-            Properties::Feature(_) => "Feature".into(),
-            Properties::Unknown(_, type_name) => type_name.into(),
+            Properties::Feature(_) => "Feature",
+            Properties::Unknown(_, type_name) => type_name,
         }
     }
 
