@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::ops::Add;
 use std::ops::Mul;
 use std::ops::Sub;
@@ -254,4 +256,23 @@ impl PartialEq for Coordinate {
 
         self.u64() == other.u64()
     }
+}
+
+impl Hash for Coordinate {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Coordinate::CoordinateU8(v) => v.hash(state),
+            Coordinate::CoordinateU16(v) => v.hash(state),
+            Coordinate::CoordinateU32(v) => v.hash(state),
+            Coordinate::CoordinateU64(v) => v.hash(state),
+            // FIXME: Ugly workaround... 16 decimal position is enough to
+            //        represent any mantissa of 2^53 bits.
+            Coordinate::CoordinateF64(v) => format!("{:.*}", 16, v).hash(state),
+        }
+    }
+
+    /*
+    fn hash_slice<H: Hasher>(data: &[Self], state: &mut H) where Self: Sized {
+        unimplemented!()
+    }*/
 }

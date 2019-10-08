@@ -13,7 +13,7 @@ use std::ops::SubAssign;
 
 use super::coordinate::Coordinate;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Position {
     Position1(Coordinate),
     Position2([Coordinate; 2]),
@@ -204,6 +204,9 @@ impl Mul for Position {
     }
 }
 
+// FIXME: Which is faster, the code below or the automatically generated
+//        implementation?
+/*
 impl PartialEq for Position {
     fn eq(&self, other: &Self) -> bool {
         for i in 0..self.dimensions() {
@@ -214,8 +217,7 @@ impl PartialEq for Position {
         true
     }
 }
-
-impl Eq for Position {}
+*/
 
 impl<'s> From<&'s Position> for Vec<&'s Coordinate> {
     fn from(position: &'s Position) -> Self {

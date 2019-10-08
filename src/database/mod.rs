@@ -5,8 +5,6 @@ mod space_index;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::hash::Hash;
-use std::hash::Hasher;
 
 use ironsea_index::Indexed;
 use ironsea_table_vector::VectorTable;
@@ -57,13 +55,16 @@ impl PartialEq for SpaceId {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
 pub struct SpaceObject {
     pub space_id: String,
     pub position: Position,
     pub value: Properties,
 }
 
+// FIXME: Which is faster, the code below or the automatically generated
+//        implementation?
+/*
 impl PartialEq for SpaceObject {
     fn eq(&self, other: &Self) -> bool {
         self.space_id == other.space_id
@@ -71,15 +72,7 @@ impl PartialEq for SpaceObject {
             && self.position == other.position
     }
 }
-
-impl Eq for SpaceObject {}
-
-impl Hash for SpaceObject {
-    //FIXME: ADD HASHING IMPLEMENTATION, REQUIRED FOR distinct()!
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        unimplemented!()
-    }
-}
+*/
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DataBase {

@@ -14,7 +14,7 @@ pub struct CoreQueryParameters<'a> {
     pub resolution: Option<Vec<u64>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Properties {
     Feature(String),
     Unknown(String, String),
@@ -50,13 +50,15 @@ impl Properties {
     }
 }
 
+// FIXME: Which is faster, the code below or the automatically generated
+//        implementation?
+/*
 impl PartialEq for Properties {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id() && self.type_name() == other.type_name()
     }
 }
-
-impl Eq for Properties {}
+*/
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Core {
