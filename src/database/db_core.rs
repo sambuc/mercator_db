@@ -11,7 +11,8 @@ pub struct CoreQueryParameters<'a> {
     pub db: &'a DataBase,
     pub output_space: Option<&'a str>,
     pub threshold_volume: Option<f64>,
-    pub resolution: Option<Vec<u64>>,
+    pub view_port: &'a Option<(Vec<f64>, Vec<f64>)>,
+    pub resolution: Option<Vec<u32>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -75,6 +76,8 @@ impl Core {
         spaces: &[Space],
         properties: Vec<Properties>,
         space_objects: Vec<SpaceSetObject>,
+        scales: Option<Vec<Vec<u32>>>,
+        max_elements: Option<usize>,
     ) -> Self
     //Result<Self, String>
     where
@@ -101,7 +104,7 @@ impl Core {
                 })
                 .collect();
 
-            space_dbs.push(SpaceDB::new(space.name(), filtered))
+            space_dbs.push(SpaceDB::new(&space, filtered, scales.clone(), max_elements))
         }
 
         Core {
@@ -195,6 +198,7 @@ impl Core {
             output_space,
             threshold_volume,
             resolution,
+            ..
         } = parameters;
 
         let mut results = vec![];
@@ -238,6 +242,7 @@ impl Core {
             output_space,
             threshold_volume,
             resolution,
+            ..
         } = parameters;
 
         let mut results = vec![];
@@ -272,6 +277,7 @@ impl Core {
             output_space,
             threshold_volume,
             resolution,
+            ..
         } = parameters;
 
         let id: String = id.into();
@@ -310,6 +316,7 @@ impl Core {
             output_space,
             threshold_volume,
             resolution,
+            ..
         } = parameters;
 
         let id: String = id.into();

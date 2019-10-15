@@ -206,4 +206,49 @@ impl Shape {
             })
             .collect())
     }
+
+    pub fn volume(&self) -> f64 {
+        match self {
+            Shape::Point(_) => std::f64::EPSILON, // Smallest non-zero volume possible
+            Shape::BoundingBox(low, high) => {
+                let mut volume = 1.0;
+
+                // For each dimension, multiply by the length in that dimension
+                for i in 0..low.dimensions() {
+                    let l = low[i].f64();
+                    let h = high[i].f64();
+                    let length = if h > l { h - l } else { l - h };
+
+                    volume *= length;
+                }
+
+                volume
+            }
+            Shape::HyperSphere(position, radius) => {
+                // Formula from https://en.wikipedia.org/wiki/N-sphere#/media/File:N_SpheresVolumeAndSurfaceArea.png
+                let k = position.dimensions(); // Number of dimensions.
+                let radius = radius.f64();
+
+                let pi = std::f64::consts::PI;
+                let factor = 2.0 * pi;
+
+                // Set starting values for the coefficient
+                let mut a = 2.0;
+                let mut i = if (k % 2) == 0 {
+                    a = pi;
+                    2
+                } else {
+                    1
+                };
+
+                while i < k {
+                    i += 2;
+                    a *= factor;
+                    a /= i as f64;
+                }
+
+                a * radius.powi(i as i32)
+            }
+        }
+    }
 }

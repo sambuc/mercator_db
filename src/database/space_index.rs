@@ -6,7 +6,7 @@ use super::space::Position;
 use super::space::Shape;
 use super::SpaceId;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct SpaceSetObject {
     space_id: SpaceId,
     position: Position,
@@ -32,6 +32,10 @@ impl SpaceSetObject {
 
     pub fn position(&self) -> &Position {
         &self.position
+    }
+
+    pub fn set_position(&mut self, pos: Position) {
+        self.position = pos;
     }
 
     pub fn value(&self) -> &Coordinate {
@@ -97,7 +101,7 @@ pub type SpaceSetIndex = ironsea_index_sfc_dbc::IndexOwned<
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceIndex {
     threshold_volume: f64,
-    // lookup_ rounds up, so reverse sort of the list on threasholds and check for last index.
+    // lookup_ rounds up, so reverse sort of the list on thresholds and check for last index.
     scale: Vec<u32>,
     index: SpaceSetIndex,
 }
@@ -113,6 +117,10 @@ impl SpaceIndex {
 
     pub fn threshold(&self) -> f64 {
         self.threshold_volume
+    }
+
+    pub fn scale(&self) -> &Vec<u32> {
+        &self.scale
     }
 
     pub fn find(&self, key: &Position) -> Vec<SpaceSetObject> {

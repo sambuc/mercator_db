@@ -1,12 +1,20 @@
+use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::hash::Hasher;
+
+use ironsea_table_vector::VectorTable;
+
 use super::space::Coordinate;
 use super::space::Position;
 use super::space::Shape;
+use super::space::Space;
 use super::space_index::SpaceFields;
 use super::space_index::SpaceIndex;
 use super::space_index::SpaceSetIndex;
 use super::space_index::SpaceSetObject;
-
-use ironsea_table_vector::VectorTable;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceDB {
@@ -16,17 +24,24 @@ pub struct SpaceDB {
 }
 
 impl SpaceDB {
-    pub fn new<S>(reference_space: S, mut space_objects: Vec<SpaceSetObject>) -> Self
-    where
-        S: Into<String>,
-    {
+    pub fn new(
+        reference_space: &Space,
+        mut space_objects: Vec<SpaceSetObject>,
+        scales: Option<Vec<Vec<u32>>>,
+        max_elements: Option<usize>,
+    ) -> Self {
+        //FIXME: Remove hard-coded constants for dimensions & bit length of morton codes.
+        const DIMENSIONS: usize = 3;
+        const CELL_BITS: usize = 10;
+
         let mut values = space_objects
             .iter()
             .map(|object| *object.value())
+            .collect::<HashSet<_>>()
+            .drain()
             .collect::<Vec<_>>();
 
         values.sort_unstable_by_key(|&c| c.u64());
-        values.dedup_by_key(|c| c.u64());
 
         space_objects.iter_mut().for_each(|object| {
             // Update the values to point into the local (shorter) mapping array.
@@ -35,27 +50,174 @@ impl SpaceDB {
         });
 
         // Build the set of SpaceIndices.
-        // FIXME: Build multiple-scale indices. What is the stopping condition, and what are the parameters?
-        let max_elem = 2_000;
-        // We cannot return less that the total number of individual Ids stored
-        // in the index.
-        let max = max_elem.max(values.len());
-        // Generate indices as long as max is smaller than the number of point located in the whole space.
-        // For each new index, reduce precision by two, and push to resolutions vectors.
+        let mut resolutions = vec![];
+        let mut indices = vec![];
+
+        if let Some(scales) = scales {
+            // We optimize scaling, by iteratively building coarser and coarser
+            // indexes. Powers holds a list of bit shift to apply based on the
+            // previous value.
+            let mut powers = Vec::with_capacity(scales.len());
+
+            // Limit temporary values lifetimes
+            {
+                // Sort by values, smaller to bigger.
+                let mut exps = scales.clone();
+                exps.sort_unstable_by_key(|v| v[0]);
+
+                let mut previous = 0u32;
+                for scale in exps {
+                    // FIXME: Remove these assertions ASAP, and support multi-factor scaling
+                    assert_eq!(scale.len(), DIMENSIONS);
+                    assert!(scale[0] == scale[1] && scale[0] == scale[2]);
+
+                    powers.push((scale[0], scale[0] - previous));
+                    previous = scale[0];
+                }
+            }
+
+            // Apply fixed scales
+            let mut count = 0;
+            for power in &powers {
+                space_objects = space_objects
+                    .into_iter()
+                    .map(|mut o| {
+                        let p = o.position().reduce_precision(power.1);
+                        let mut hasher = DefaultHasher::new();
+                        o.set_position(p);
+
+                        // Hash, AFTER updating the position.
+                        o.hash(&mut hasher);
+
+                        (hasher.finish(), o)
+                    })
+                    .collect::<HashMap<_, SpaceSetObject>>()
+                    .drain()
+                    .map(|(_k, v)| v)
+                    .collect();
+
+                // Make sure we do not shift more position than available
+                let shift = if count >= 31 { 31 } else { count };
+                count += 1;
+                indices.push((
+                    SpaceSetIndex::new(
+                        &VectorTable::new(space_objects.to_vec()),
+                        DIMENSIONS,
+                        CELL_BITS,
+                    ),
+                    vec![power.0, power.0, power.0],
+                    shift,
+                ));
+            }
+        } else {
+            // Generate scales, following max_elements
+            if let Some(max_elements) = max_elements {
+                // We cannot return less that the total number of individual Ids stored
+                // in the index for a full-volume query.
+                let max_elements = max_elements.max(values.len());
+                let mut count = 0;
+
+                // The next index should contain at most half the number of
+                // elements of the current index.
+                let mut element_count_target = space_objects.len() / 2;
+
+                // Insert Full resolution index.
+                indices.push((
+                    SpaceSetIndex::new(
+                        &VectorTable::new(space_objects.clone()),
+                        DIMENSIONS,
+                        CELL_BITS,
+                    ),
+                    vec![count, count, count],
+                    0, // Smallest value => highest resolution
+                ));
+
+                // Generate coarser indices, until we reach the expect max_element
+                // values or we can't define bigger bit shift.
+                loop {
+                    // Make sure we do not shift more position than available
+                    let shift = if count >= 31 { 31 } else { count };
+                    count += 1;
+                    space_objects = space_objects
+                        .into_iter()
+                        .map(|mut o| {
+                            let p = o.position().reduce_precision(1);
+                            let mut hasher = DefaultHasher::new();
+                            o.set_position(p);
+
+                            // Hash, AFTER updating the position.
+                            o.hash(&mut hasher);
+
+                            (hasher.finish(), o)
+                        })
+                        .collect::<HashMap<_, SpaceSetObject>>()
+                        .drain()
+                        .map(|(_k, v)| v)
+                        .collect();
+
+                    // Skip a resolution if it does not bring down enough the
+                    // number of points. It would be a waste of space to store it.
+                    if element_count_target < space_objects.len() {
+                        continue;
+                    } else {
+                        // The next index should contain at most half the number of
+                        // elements of the current index.
+                        element_count_target = space_objects.len() / 2;
+                    }
+
+                    indices.push((
+                        SpaceSetIndex::new(
+                            &VectorTable::new(space_objects.to_vec()),
+                            DIMENSIONS,
+                            CELL_BITS,
+                        ),
+                        vec![count, count, count],
+                        shift,
+                    ));
+
+                    if space_objects.len() <= max_elements || count == std::u32::MAX {
+                        break;
+                    }
+                }
+
+            // Generate indices as long as max is smaller than the number of point located in the whole space.
+            // For each new index, reduce precision by two, and push to resolutions vectors.
+            } else {
+                // Generate only full-scale.
+                indices.push((
+                    SpaceSetIndex::new(&VectorTable::new(space_objects), DIMENSIONS, CELL_BITS),
+                    vec![0, 0, 0],
+                    0,
+                ));
+            }
+        }
 
         // When done, go over the array, and set the threshold_volumes with Volume total / 8 * i in reverse order
-        //
-        let index = SpaceSetIndex::new(&VectorTable::new(space_objects), 3, 10);
-        let mut resolutions = vec![SpaceIndex::new(std::f64::MAX, vec![0, 0, 0], index)];
+        let space_volume = reference_space.volume();
+        let max_shift = match indices.last() {
+            None => 31,
+            Some((_, _, x)) => *x,
+        };
+
+        for (index, scale, shift) in indices {
+            // Compute threshold volume as Vt = V / 2^(max_shift) * 2^shift
+            //  => the smaller shift is, the smaller the threshold is and the higher
+            //     the resolution is.
+            let volume = space_volume / f64::from(1 << (max_shift - shift));
+
+            resolutions.push(SpaceIndex::new(volume, scale, index));
+        }
 
         // Make sure the vector is sorted by threshold volumes, smallest to largest.
         // this means indices are sorted form highest resolution to lowest resolution.
-        // default_resolution() relies on it to find the correct index.
-        //FIXME: Domain check between f64 <-> u64 XOR implement Ord on f64
-        resolutions.sort_unstable_by_key(|a| a.threshold() as u64);
+        // default_resolution() relies on this to find the correct index.
+        resolutions.sort_unstable_by(|a, b| match a.threshold().partial_cmp(&b.threshold()) {
+            Some(o) => o,
+            None => Ordering::Less, // FIXME: This is most likely incorrect...
+        });
 
         SpaceDB {
-            reference_space: reference_space.into(),
+            reference_space: reference_space.name().clone(),
             values,
             resolutions,
         }
@@ -88,29 +250,65 @@ impl SpaceDB {
     fn default_resolution(&self, volume: f64) -> usize {
         for i in 0..self.resolutions.len() {
             if volume <= self.resolutions[i].threshold() {
+                debug!(
+                    "Selected {:?} -> {:?} vs {:?}",
+                    i,
+                    self.resolutions[i].threshold(),
+                    volume,
+                );
+
                 return i;
             }
         }
-        self.resolutions.len()
+
+        debug!(
+            "Selected lowest resolution -> {:?} vs {:?}",
+            self.resolutions[self.lowest_resolution()].threshold(),
+            volume
+        );
+
+        self.lowest_resolution()
     }
 
-    fn find_resolution(&self, _scales: &[u64]) -> usize {
-        // FIXME: Implement stuff here!
+    fn find_resolution(&self, scale: &[u32]) -> usize {
+        for i in 0..self.resolutions.len() {
+            if scale <= self.resolutions[i].scale() {
+                debug!(
+                    "Selected {:?} -> {:?} vs {:?}",
+                    i,
+                    self.resolutions[i].scale(),
+                    scale
+                );
+
+                return i;
+            }
+        }
+        warn!(
+            "Scale factors {:?} not found, using lowest resolution: {:?}",
+            scale,
+            self.resolutions[self.lowest_resolution()].scale()
+        );
+
         self.lowest_resolution()
     }
 
     pub fn get_resolution(
         &self,
         threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u64>>,
+        resolution: &Option<Vec<u32>>,
     ) -> usize {
-        if let Some(threshold_volume) = threshold_volume {
-            self.default_resolution(*threshold_volume)
-        } else {
-            match resolution {
-                None => self.lowest_resolution(),
-                Some(v) => self.find_resolution(v),
+        // If a specific scale has been set, try to find it, otherwise use the
+        // threshold volume to figure a default value, and fall back to the most
+        // coarse resolution whenever nothing is specified.
+        match resolution {
+            None => {
+                if let Some(threshold_volume) = threshold_volume {
+                    self.default_resolution(*threshold_volume)
+                } else {
+                    self.lowest_resolution()
+                }
             }
+            Some(v) => self.find_resolution(v),
         }
     }
 
@@ -128,7 +326,7 @@ impl SpaceDB {
         &self,
         id: usize,
         threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u64>>,
+        resolution: &Option<Vec<u32>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
         // Is that ID referenced in the current space?
         if let Ok(offset) = self.values.binary_search(&id.into()) {
@@ -154,7 +352,7 @@ impl SpaceDB {
         &self,
         positions: &[Position],
         threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u64>>,
+        resolution: &Option<Vec<u32>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
         let index = self.get_resolution(threshold_volume, resolution);
 
@@ -174,7 +372,7 @@ impl SpaceDB {
         &self,
         shape: &Shape,
         threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u64>>,
+        resolution: &Option<Vec<u32>>,
     ) -> Result<Vec<SpaceSetObject>, String> {
         let index = self.get_resolution(threshold_volume, resolution);
 

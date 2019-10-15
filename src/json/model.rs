@@ -162,6 +162,8 @@ pub fn build_index(
     version: &str,
     spaces: &[space::Space],
     objects: &[SpatialObject],
+    scales: Option<Vec<Vec<u32>>>,
+    max_elements: Option<usize>,
 ) -> Core {
     let mut properties = vec![];
     let mut space_set_objects = vec![];
@@ -210,5 +212,13 @@ pub fn build_index(
         object.set_value(value.into());
     });
 
-    Core::new(name, version, spaces, properties, space_set_objects)
+    Core::new(
+        name,
+        version,
+        spaces,
+        properties,
+        space_set_objects,
+        scales,
+        max_elements,
+    )
 }

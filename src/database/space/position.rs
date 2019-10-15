@@ -82,6 +82,16 @@ impl Position {
 
         product
     }
+
+    pub fn reduce_precision(&self, scale: u32) -> Self {
+        let mut position = Vec::with_capacity(self.dimensions());
+
+        for i in 0..self.dimensions() {
+            position.push((self[i].u64() >> scale).into())
+        }
+
+        Position::new(position)
+    }
 }
 
 impl Display for Position {

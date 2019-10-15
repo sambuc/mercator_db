@@ -21,7 +21,7 @@ pub type ResultSet = Result<Vec<SpaceObject>, String>;
 pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<VectorTable<Space>, Space, String>;
 type CoreIndex = ironsea_index_hashmap::Index<VectorTable<Core>, Core, String>;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub struct SpaceId(String);
 
 impl SpaceId {
@@ -49,30 +49,12 @@ where
     }
 }
 
-impl PartialEq for SpaceId {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
 pub struct SpaceObject {
     pub space_id: String,
     pub position: Position,
     pub value: Properties,
 }
-
-// FIXME: Which is faster, the code below or the automatically generated
-//        implementation?
-/*
-impl PartialEq for SpaceObject {
-    fn eq(&self, other: &Self) -> bool {
-        self.space_id == other.space_id
-            && self.value == other.value
-            && self.position == other.position
-    }
-}
-*/
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DataBase {

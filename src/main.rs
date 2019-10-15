@@ -22,7 +22,7 @@ fn main() {
     // Build a Database Index:
     if true {
         info_time!("Building database index");
-        storage::build("10k", "v0.1");
+        storage::build("10k", "v0.1", None, None);
     }
 
     // Load a Database:
@@ -40,6 +40,7 @@ fn main() {
             db: &db,
             output_space: None,
             threshold_volume: Some(std::f64::MAX),
+            view_port: &None,
             resolution: None,
         };
         let r = core.get_by_id(&c, id).unwrap();
@@ -50,6 +51,7 @@ fn main() {
             db: &db,
             output_space: None,
             threshold_volume: Some(0.0),
+            view_port: &None,
             resolution: None,
         };
         let r = core.get_by_id(&c, id).unwrap();
@@ -60,6 +62,7 @@ fn main() {
             db: &db,
             output_space: None,
             threshold_volume: Some(std::f64::MAX),
+            view_port: &None,
             resolution: None,
         };
         let r = core.get_by_label(&c, id).unwrap();
@@ -77,6 +80,7 @@ fn main() {
             db: &db,
             output_space: None,
             threshold_volume: Some(0.0),
+            view_port: &None,
             resolution: None,
         };
         let r = core.get_by_shape(&c, &shape, "std").unwrap();

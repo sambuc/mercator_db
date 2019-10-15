@@ -74,7 +74,12 @@ pub fn convert(name: &str) {
     from_json::<Vec<model::SpatialObject>>(&fn_in, &fn_out);
 }
 
-pub fn build(name: &str, version: &str) {
+pub fn build(
+    name: &str,
+    version: &str,
+    scales: Option<Vec<Vec<u32>>>,
+    max_elements: Option<usize>,
+) {
     let fn_spaces = format!("{}.spaces.bin", name);
     let fn_objects = format!("{}.objects.bin", name);
     let fn_index = format!("{}.index", name);
@@ -89,6 +94,8 @@ pub fn build(name: &str, version: &str) {
         version,
         &spaces,
         &load::<Vec<model::SpatialObject>>(&fn_objects),
+        scales,
+        max_elements,
     );
 
     store((spaces, core), &fn_index);
