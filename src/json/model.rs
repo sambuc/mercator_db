@@ -69,7 +69,7 @@ impl From<Axis> for space::Axis {
         let g = axis.graduation;
 
         space::Axis::new(
-            axis.measurement_unit,
+            &axis.measurement_unit,
             axis.unit_vector,
             g.set.into(),
             g.minimum,
@@ -83,7 +83,7 @@ impl From<Axis> for space::Axis {
 impl From<&space::Axis> for Axis {
     fn from(axis: &space::Axis) -> Self {
         Axis {
-            measurement_unit: axis.measurement_unit().clone(),
+            measurement_unit: axis.measurement_unit(),
             graduation: axis.graduation().into(),
             unit_vector: axis.unit_vector().into(),
         }

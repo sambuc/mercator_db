@@ -55,27 +55,79 @@ impl Graduation {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum UnitSI {
+    // Partial list, which is tailored to the use case needs. Prevents possible
+    // confusions between Mm and mm, for example.
+    m,
+    dm,
+    cm,
+    mm,
+    um,
+    nm,
+    pm,
+}
+
+impl UnitSI {
+    pub fn factor(&self) -> f64 {
+        match self {
+            UnitSI::m => 1.0_E0,
+            UnitSI::dm => 1.0_E-1,
+            UnitSI::cm => 1.0_E-2,
+            UnitSI::mm => 1.0_E-3,
+            UnitSI::um => 1.0_E-6,
+            UnitSI::nm => 1.0_E-9,
+            UnitSI::pm => 1.0_E-12,
+        }
+    }
+
+    pub fn to_str(&self) -> &str {
+        match self {
+            UnitSI::m => "m",
+            UnitSI::dm => "dm",
+            UnitSI::cm => "cm",
+            UnitSI::mm => "mm",
+            UnitSI::um => "um",
+            UnitSI::nm => "nm",
+            UnitSI::pm => "pm",
+        }
+    }
+}
+
+impl From<&str> for UnitSI {
+    fn from(name: &str) -> Self {
+        match name {
+            "m" => UnitSI::m,
+            "dm" => UnitSI::dm,
+            "cm" => UnitSI::cm,
+            "mm" => UnitSI::mm,
+            "um" => UnitSI::um,
+            "nm" => UnitSI::nm,
+            "pm" => UnitSI::pm,
+            _ => unimplemented!("Unknown unit '{}'", name),
+        }
+    }
+}
+
 // TODO: In the future this might become an Enum with AffineAxis, ArbitraryAxis, etc...
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Axis {
-    measurement_unit: String,
+    measurement_unit: UnitSI,
     graduation: Graduation,
     // Coordinates in Universe, expressed in f64, and in the Universe number of dimensions.
     pub unit_vector: Position,
 }
 
 impl Axis {
-    pub fn new<S>(
-        unit: S,
+    pub fn new(
+        unit: &str,
         unit_vector: Vec<f64>,
         set: NumberSet,
         minimum: f64,
         maximum: f64,
         steps: u64,
-    ) -> Result<Self, String>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<Self, String> {
         // Convert to Position, and ensure it is a unit vector.
         let unit_vector = Position::from(unit_vector).unit();
         let graduation = Graduation::new(set, minimum, maximum, steps)?;
@@ -87,8 +139,8 @@ impl Axis {
         })
     }
 
-    pub fn measurement_unit(&self) -> &String {
-        &self.measurement_unit
+    pub fn measurement_unit(&self) -> String {
+        self.measurement_unit.to_str().into()
     }
 
     pub fn unit_vector(&self) -> &Position {
@@ -106,6 +158,9 @@ impl Axis {
 
         let d = position.dot_product(&self.unit_vector);
 
+        // Apply Unit scaling
+        let d = d / self.measurement_unit.factor();
+
         // Ensure it is within allowed range: Upper bound.
         if d > max {
             return Err(format!("Encode: position out of bounds: {} >= {}", d, max));
@@ -122,6 +177,10 @@ impl Axis {
     // Convert a value on this axis to Universe coordinates, based from the origin of this axis.
     pub fn project_out(&self, coordinate: &Coordinate) -> Result<Position, String> {
         let d = self.decode(coordinate)?;
+
+        // Apply Unit scaling
+        let d = d * self.measurement_unit.factor();
+
         Ok(self.unit_vector.clone() * d)
     }
 
