@@ -15,6 +15,7 @@ use super::space_index::SpaceFields;
 use super::space_index::SpaceIndex;
 use super::space_index::SpaceSetIndex;
 use super::space_index::SpaceSetObject;
+use super::CoreQueryParameters;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceDB {
@@ -292,11 +293,13 @@ impl SpaceDB {
         self.lowest_resolution()
     }
 
-    pub fn get_resolution(
-        &self,
-        threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u32>>,
-    ) -> usize {
+    pub fn get_resolution(&self, parameters: &CoreQueryParameters) -> usize {
+        let CoreQueryParameters {
+            threshold_volume,
+            resolution,
+            ..
+        } = parameters;
+
         // If a specific scale has been set, try to find it, otherwise use the
         // threshold volume to figure a default value, and fall back to the most
         // coarse resolution whenever nothing is specified.
@@ -325,15 +328,28 @@ impl SpaceDB {
     pub fn get_by_id(
         &self,
         id: usize,
-        threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u32>>,
+        parameters: &CoreQueryParameters,
     ) -> Result<Vec<SpaceSetObject>, String> {
         // Is that ID referenced in the current space?
         if let Ok(offset) = self.values.binary_search(&id.into()) {
-            let index = self.get_resolution(threshold_volume, resolution);
+            let index = self.get_resolution(parameters);
 
-            let mut results = self.resolutions[index]
+            // Convert the view port to the encoded space coordinates
+            let space = parameters.db.space(&self.reference_space)?;
+            let view_port = parameters.view_port(space);
+
+            // Select the objects
+            let objects = self.resolutions[index]
                 .find_by_value(&SpaceFields::new(self.name().into(), offset.into()));
+
+            let mut results = if let Some(view_port) = view_port {
+                objects
+                    .into_iter()
+                    .filter(|o| view_port.contains(o.position()))
+                    .collect::<Vec<SpaceSetObject>>()
+            } else {
+                objects
+            };
 
             // Convert the Value back to caller's references
             // Here we do not use decode() as we have a single id value to manage.
@@ -351,17 +367,25 @@ impl SpaceDB {
     pub fn get_by_positions(
         &self,
         positions: &[Position],
-        threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u32>>,
+        parameters: &CoreQueryParameters,
     ) -> Result<Vec<SpaceSetObject>, String> {
         let index = self.get_resolution(threshold_volume, resolution);
 
+        // FIXME: Should I do it here, or add the assumption this is a clean list?
+        // Convert the view port to the encoded space coordinates
+        //let space = parameters.db.space(&self.reference_space)?;
+        //let view_port = parameters.view_port(space);
+
+        // Select the objects
         let results = positions
             .iter()
             .flat_map(|position| self.resolutions[index].find(position))
             .collect::<Vec<SpaceSetObject>>();
 
-        Ok(self.decode(results))
+        // Decode the Value reference
+        let results = self.decode_value(results);
+
+        Ok(results)
     }
 
     // Search by Shape defining a volume:
@@ -371,11 +395,20 @@ impl SpaceDB {
     pub fn get_by_shape(
         &self,
         shape: &Shape,
-        threshold_volume: &Option<f64>,
-        resolution: &Option<Vec<u32>>,
+        parameters: &CoreQueryParameters,
     ) -> Result<Vec<SpaceSetObject>, String> {
         let index = self.get_resolution(threshold_volume, resolution);
 
-        Ok(self.decode(self.resolutions[index].find_by_shape(&shape)?))
+        // Convert the view port to the encoded space coordinates
+        let space = parameters.db.space(&self.reference_space)?;
+        let view_port = parameters.view_port(space);
+
+        // Select the objects
+        let results = self.resolutions[index].find_by_shape(&shape, &view_port)?;
+
+        // Decode the Value reference
+        let results = self.decode_value(results);
+
+        Ok(results)
     }
 }

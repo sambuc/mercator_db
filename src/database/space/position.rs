@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -13,7 +15,7 @@ use std::ops::SubAssign;
 
 use super::coordinate::Coordinate;
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, Serialize)]
 pub enum Position {
     Position1(Coordinate),
     Position2([Coordinate; 2]),
@@ -101,6 +103,50 @@ impl Display for Position {
     }
 }
 
+impl PartialOrd for Position {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // Let's restrict for now to same-length vectors.
+        if self.dimensions() != other.dimensions() {
+            return None;
+        }
+
+        let mut ordering = HashSet::with_capacity(self.dimensions());
+        for k in 0..self.dimensions() {
+            ordering.insert(self[k].partial_cmp(&other[k]));
+        }
+
+        if ordering.contains(&None) {
+            return None;
+        }
+
+        let ordering = ordering.drain().filter_map(|v| v).collect::<Vec<_>>();
+        match ordering.len() {
+            3 => None,
+            2 => {
+                // The two values are, by construction different, which means we
+                // have the following possibilities as there are only GREATER,
+                // EQUAL and LESS in the enum:
+                //  - LESS, GREATER
+                //  - LESS, EQUAL
+                //  - GREATER, EQUAL
+                // If one of the values is EQUAL, then the ordering will be the
+                // other value.
+                if ordering[0] == Ordering::Equal {
+                    Some(ordering[1])
+                } else if ordering[1] == Ordering::Equal {
+                    Some(ordering[0])
+                } else {
+                    None
+                }
+            }
+            1 => Some(ordering[0]),
+            // We can not have more than 3 elements, and if we have 0, it means
+            // we had only None in the list
+            _ => None,
+        }
+    }
+}
+
 impl Index<usize> for Position {
     type Output = Coordinate;
 
@@ -161,6 +207,22 @@ impl Sub for Position {
     fn sub(mut self, rhs: Self) -> Self::Output {
         self -= rhs;
         self
+    }
+}
+
+impl Sub for &Position {
+    type Output = Position;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let dimensions = self.dimensions();
+        assert_eq!(dimensions, rhs.dimensions());
+        let mut v = Vec::with_capacity(dimensions);
+
+        for k in 0..dimensions {
+            v.push(self[k] - rhs[k]);
+        }
+
+        v.into()
     }
 }
 
@@ -266,6 +328,16 @@ impl From<Vec<f64>> for Position {
         coordinates
             .into_iter()
             .map(|c| c.into())
+            .collect::<Vec<Coordinate>>()
+            .into()
+    }
+}
+
+impl From<&Vec<f64>> for Position {
+    fn from(coordinates: &Vec<f64>) -> Self {
+        coordinates
+            .iter()
+            .map(|c| (*c).into())
             .collect::<Vec<Coordinate>>()
             .into()
     }

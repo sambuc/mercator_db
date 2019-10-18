@@ -1,3 +1,5 @@
+use std::cmp::Ord;
+
 use ironsea_index::IndexedOwned;
 use ironsea_table_vector::VectorTable;
 
@@ -123,26 +125,89 @@ impl SpaceIndex {
         &self.scale
     }
 
+    // Inputs and Results are expressed in encoded space coordinates.
     pub fn find(&self, key: &Position) -> Vec<SpaceSetObject> {
         self.index.find(key)
     }
 
+    // Inputs and Results are expressed in encoded space coordinates.
     fn find_range(&self, start: &Position, end: &Position) -> Vec<SpaceSetObject> {
         self.index.find_range(start, end)
     }
 
+    // Inputs and Results are expressed in encoded space coordinates.
     pub fn find_by_value(&self, id: &SpaceFields) -> Vec<SpaceSetObject> {
         self.index.find_by_value(id)
     }
 
-    // The shape provided in arguments needs to be expressed in encoded space positions.
-    // Results are also in encoded space coordinates.
-    pub fn find_by_shape(&self, shape: &Shape) -> Result<Vec<SpaceSetObject>, String> {
+    /// Inputs and Results are also in encoded space coordinates.
+    pub fn find_by_shape(
+        &self,
+        shape: &Shape,
+        view_port: &Option<Shape>,
+    ) -> Result<Vec<SpaceSetObject>, String> {
         match shape {
-            Shape::Point(position) => Ok(self.find(position)),
-            Shape::BoundingBox(lower, higher) => Ok(self.find_range(lower, higher)),
+            Shape::Point(position) => {
+                if let Some(mbb) = view_port {
+                    if mbb.contains(position) {
+                        Ok(self.find(position))
+                    } else {
+                        Err(format!(
+                            "View port '{:?}' does not contain '{:?}'",
+                            mbb, position
+                        ))
+                    }
+                } else {
+                    Ok(self.find(position))
+                }
+            }
+            Shape::BoundingBox(bl, bh) => {
+                if let Some(mbb) = view_port {
+                    match mbb {
+                        Shape::BoundingBox(vl, vh) => {
+                            // Compute the intersection of the two boxes.
+                            let lower = bl.max(vl);
+                            let higher = bh.min(vh);
+                            if higher < lower {
+                                Err(format!(
+                                    "View port '{:?}' does not intersect '{:?}'",
+                                    mbb, shape
+                                ))
+                            } else {
+                                trace!(
+                                    "mbb {:?} shape {:?} lower {:?} higher {:?}",
+                                    mbb,
+                                    shape,
+                                    lower,
+                                    higher
+                                );
+                                Ok(self.find_range(lower, higher))
+                            }
+                        }
+                        _ => Err(format!("Invalid view port shape '{:?}'", mbb)),
+                    }
+                } else {
+                    Ok(self.find_range(bl, bh))
+                }
+            }
             Shape::HyperSphere(center, radius) => {
-                let (lower, higher) = shape.get_mbb();
+                let (bl, bh) = &shape.get_mbb();
+                let lower;
+                let higher;
+
+                if let Some(mbb) = view_port {
+                    match mbb {
+                        Shape::BoundingBox(vl, vh) => {
+                            // Compute the intersection of the two boxes.
+                            lower = bl.max(vl);
+                            higher = bh.min(vh);
+                        }
+                        _ => return Err(format!("Invalid view port shape '{:?}'", mbb)),
+                    }
+                } else {
+                    lower = bl;
+                    higher = bh;
+                }
 
                 // Filter out results using using a range query over the MBB,
                 // then add the condition of the radius as we are working within

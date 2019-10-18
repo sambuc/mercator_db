@@ -15,6 +15,20 @@ pub struct CoreQueryParameters<'a> {
     pub resolution: Option<Vec<u32>>,
 }
 
+impl CoreQueryParameters<'_> {
+    pub fn view_port(&self, space: &Space) -> Option<Shape> {
+        if let Some((low, high)) = self.view_port {
+            let view_port = Shape::BoundingBox(low.into(), high.into());
+            match view_port.rebase(Space::universe(), space) {
+                Err(_) => None,
+                Ok(view) => Some(view),
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Properties {
     Feature(String),
@@ -194,27 +208,32 @@ impl Core {
         from: &str,
     ) -> ResultSet {
         let CoreQueryParameters {
-            db,
-            output_space,
-            threshold_volume,
-            resolution,
-            ..
+            db, output_space, ..
         } = parameters;
 
         let mut results = vec![];
         let count = positions.len();
         let from = db.space(from)?;
 
+        // Filter positions based on the view port, if present
+        let filtered = match parameters.view_port(from) {
+            None => positions.iter().map(|p| p).collect::<Vec<_>>(),
+            Some(view_port) => positions
+                .iter()
+                .filter(|&p| view_port.contains(p))
+                .collect::<Vec<_>>(),
+        };
+
         for s in &self.space_db {
             let to = db.space(s.name())?;
             let mut p = Vec::with_capacity(count);
 
-            for position in positions {
+            for position in filtered.as_slice() {
                 let position: Vec<f64> = Space::change_base(position, from, to)?.into();
                 p.push(to.encode(&position)?);
             }
 
-            let r = s.get_by_positions(&p, threshold_volume, resolution)?;
+            let r = s.get_by_positions(&p, parameters)?;
             let mut r = self.to_space_object(s.name(), r);
 
             Self::decode_positions(&mut r, to, db, output_space)?;
@@ -238,11 +257,7 @@ impl Core {
         space_id: &str,
     ) -> ResultSet {
         let CoreQueryParameters {
-            db,
-            output_space,
-            threshold_volume,
-            resolution,
-            ..
+            db, output_space, ..
         } = parameters;
 
         let mut results = vec![];
@@ -256,7 +271,7 @@ impl Core {
             //            let current_shape = shape.encode(current_space)?;
             //            println!("current shape Encoded: {:?}", current_shape);
 
-            let r = s.get_by_shape(&current_shape, threshold_volume, resolution)?;
+            let r = s.get_by_shape(&current_shape, parameters)?;
             let mut r = self.to_space_object(s.name(), r);
 
             Self::decode_positions(&mut r, current_space, db, output_space)?;
@@ -273,11 +288,7 @@ impl Core {
         S: Into<String>,
     {
         let CoreQueryParameters {
-            db,
-            output_space,
-            threshold_volume,
-            resolution,
-            ..
+            db, output_space, ..
         } = parameters;
 
         let id: String = id.into();
@@ -293,7 +304,7 @@ impl Core {
             for s in &self.space_db {
                 let current_space = db.space(s.name())?;
 
-                let r = s.get_by_id(offset, threshold_volume, resolution)?;
+                let r = s.get_by_id(offset, parameters)?;
                 let mut r = self.to_space_object(s.name(), r);
 
                 Self::decode_positions(&mut r, current_space, db, output_space)?;
@@ -312,15 +323,14 @@ impl Core {
         S: Into<String>,
     {
         let CoreQueryParameters {
-            db,
-            output_space,
-            threshold_volume,
-            resolution,
-            ..
+            db, output_space, ..
         } = parameters;
 
         let id: String = id.into();
         let mut results = vec![];
+
+        // Convert the view port to the encoded space coordinates
+        let view_port = parameters.view_port(Space::universe());
 
         if let Ok(offset) = self
             .properties
@@ -328,48 +338,53 @@ impl Core {
         {
             // Generate the search volume. Iterate over all reference spaces, to
             // retrieve a list of SpaceSetObjects linked to `id`, then iterate
-            // over the result to generate a list of positions.
+            // over the result to generate a list of positions in Universe.
             let search_volume = self
                 .space_db
                 .iter()
-                .filter_map(
-                    |s| match s.get_by_id(offset, threshold_volume, resolution) {
-                        Ok(v) => Some(v),
+                .filter_map(|s| {
+                    match db.space(s.name()) {
                         Err(_) => None,
-                    },
-                )
-                .flat_map(|v| v)
-                .map(|o| o.position().clone())
-                .collect::<Vec<_>>();
+                        Ok(from) => match s.get_by_id(offset, parameters) {
+                            Err(_) => None,
+                            Ok(v) => {
+                                // Convert the search Volume into Universe.
+                                let mut p = vec![];
+                                for o in v {
+                                    if let Ok(position) =
+                                        Space::change_base(o.position(), from, Space::universe())
+                                    {
+                                        p.push(position)
+                                    }
+                                }
 
-            /*
-                let search_volume = self
-                .space_db
-                .iter()
-                .filter_map(|s| match s.get_by_id(offset, threshold_volume) {
-                    Err(_) => None,
-                    Ok(v) => Some((
-                        s.name(),
-                        v.into_iter().map(|o| o.position()).collect::<Vec<_>>(),
-                    )),
+                                Some(p)
+                            }
+                        },
+                    }
                 })
-                .filter_map(|(space_id, list)| match db.space(space_id) {
-                    Err(_) => None,
-                    Ok(space) => Some((
-                        space_id,
-                        list.into_iter()
-                            .map(|o| space.decode(o).into())
-                            .collect::<Vec<Position>>(),
-                    )),
-                }).filter_map(|(space_id, list)|)
-                .collect::<Vec<_>>();
-            */
+                .flat_map(|v| v);
+
+            let search_volume = if let Some(view) = view_port {
+                search_volume
+                    .filter(|p| view.contains(p))
+                    .collect::<Vec<_>>()
+            } else {
+                search_volume.collect::<Vec<_>>()
+            };
 
             // Select based on the volume, and filter out the label position themselves.
             for s in &self.space_db {
                 let to = db.space(s.name())?;
+                let mut p = vec![];
 
-                let r = s.get_by_positions(&search_volume, threshold_volume, resolution)?;
+                // Convert the search Volume into the target space.
+                for position in &search_volume {
+                    let position = Space::change_base(position, Space::universe(), to)?;
+                    p.push(position);
+                }
+
+                let r = s.get_by_positions(&p, parameters)?;
                 let mut r = self.to_space_object(s.name(), r);
 
                 Self::decode_positions(&mut r, to, db, output_space)?;

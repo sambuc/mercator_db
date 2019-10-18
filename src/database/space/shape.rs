@@ -85,7 +85,13 @@ impl Shape {
         }
     }
 
-    //pub fn inside(&self) {}
+    pub fn contains(&self, position: &Position) -> bool {
+        match self {
+            Shape::Point(reference) => reference == position,
+            Shape::HyperSphere(center, radius) => (position - center).norm() <= radius.f64(),
+            Shape::BoundingBox(lower, higher) => lower <= position && position <= higher,
+        }
+    }
 
     /* Original version proposed by Charles François Rey - 2019
     ```perl
