@@ -215,7 +215,7 @@ impl SpaceIndex {
                 let results = self
                     .find_range(&lower, &higher)
                     .into_iter()
-                    .filter(|p| (p.position().clone() - center.clone()).norm() <= radius.f64())
+                    .filter(|p| (p.position() - center).norm() <= radius.f64())
                     .collect();
 
                 Ok(results)

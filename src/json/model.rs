@@ -110,7 +110,7 @@ impl From<&space::Space> for Space {
 
         Space {
             name: space.name().clone(),
-            origin: space.origin().into(),
+            origin: space.origin().clone().into(),
             axes,
         }
     }

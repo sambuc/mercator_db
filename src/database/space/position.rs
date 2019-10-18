@@ -67,19 +67,17 @@ impl Position {
 
     // Unit / Normalized vector from self.
     pub fn unit(&self) -> Self {
-        self.clone() * (1f64 / self.norm())
+        self * (1f64 / self.norm())
     }
 
     // This multiplies self^T with other, producing a scalar value
     pub fn dot_product(&self, other: &Self) -> f64 {
         assert_eq!(self.dimensions(), other.dimensions());
 
-        let point = self.clone();
-        let other = other.clone();
         let mut product = 0f64;
 
         for k in 0..self.dimensions() {
-            product += (point[k] * other[k]).f64();
+            product += (self[k] * other[k]).f64();
         }
 
         product
@@ -190,6 +188,22 @@ impl Add for Position {
     }
 }
 
+impl Add for &Position {
+    type Output = Position;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let dimensions = self.dimensions();
+        assert_eq!(dimensions, rhs.dimensions());
+        let mut v = Vec::with_capacity(dimensions);
+
+        for k in 0..dimensions {
+            v.push(self[k] + rhs[k]);
+        }
+
+        v.into()
+    }
+}
+
 impl AddAssign for Position {
     fn add_assign(&mut self, rhs: Self) {
         let dimensions = self.dimensions();
@@ -244,6 +258,21 @@ impl Mul<f64> for Position {
     fn mul(mut self, rhs: f64) -> Self::Output {
         self *= rhs;
         self
+    }
+}
+
+impl Mul<f64> for &Position {
+    type Output = Position;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        let dimensions = self.dimensions();
+        let mut v = Vec::with_capacity(dimensions);
+
+        for k in 0..dimensions {
+            v.push(self[k] * rhs);
+        }
+
+        v.into()
     }
 }
 

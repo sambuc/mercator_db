@@ -178,10 +178,7 @@ impl DataBase {
     }
 
     // Lookup a space within the reference spaces registered
-    pub fn space<S>(&self, name: S) -> Result<&Space, String>
-    where
-        S: Into<String>,
-    {
+    pub fn space(&self, name: &str) -> Result<&Space, String> {
         let name = name.into();
         if &name == space::Space::universe().name() {
             Ok(space::Space::universe())
@@ -198,10 +195,7 @@ impl DataBase {
     }
 
     // Lookup a dataset within the datasets registered
-    pub fn core<S>(&self, name: S) -> Result<&Core, String>
-    where
-        S: Into<String>,
-    {
+    pub fn core(&self, name: &str) -> Result<&Core, String> {
         let name = name.into();
         let r = self.cores.find(&name);
 

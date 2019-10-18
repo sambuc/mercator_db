@@ -12,7 +12,7 @@ pub struct CoreQueryParameters<'a> {
     pub output_space: Option<&'a str>,
     pub threshold_volume: Option<f64>,
     pub view_port: &'a Option<(Vec<f64>, Vec<f64>)>,
-    pub resolution: Option<Vec<u32>>,
+    pub resolution: &'a Option<Vec<u32>>,
 }
 
 impl CoreQueryParameters<'_> {

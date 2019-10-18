@@ -188,7 +188,7 @@ impl Axis {
         // Apply Unit scaling
         let d = d * self.measurement_unit.factor();
 
-        Ok(self.unit_vector.clone() * d)
+        Ok(&self.unit_vector * d)
     }
 
     // Value is expressed on the current Axis, not in absolute coordinates!

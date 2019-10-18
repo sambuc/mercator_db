@@ -41,7 +41,7 @@ fn main() {
             output_space: None,
             threshold_volume: Some(std::f64::MAX),
             view_port: &None,
-            resolution: None,
+            resolution: &None,
         };
         let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
@@ -52,7 +52,7 @@ fn main() {
             output_space: None,
             threshold_volume: Some(0.0),
             view_port: &None,
-            resolution: None,
+            resolution: &None,
         };
         let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
@@ -63,7 +63,7 @@ fn main() {
             output_space: None,
             threshold_volume: Some(std::f64::MAX),
             view_port: &None,
-            resolution: None,
+            resolution: &None,
         };
         let r = core.get_by_label(&c, id).unwrap();
         println!("get_by_label {}: {}", id, r.len());
@@ -81,7 +81,7 @@ fn main() {
             output_space: None,
             threshold_volume: Some(0.0),
             view_port: &None,
-            resolution: None,
+            resolution: &None,
         };
         let r = core.get_by_shape(&c, &shape, "std").unwrap();
         println!("get_by_shape {:?}: {}", shape, r.len());

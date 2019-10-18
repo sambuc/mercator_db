@@ -5,7 +5,7 @@ use super::MAX_K;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum CoordinateSystem {
-    Universe,
+    Universe { origin: Position },
     // Coordinates in Universe, expressed in f64, and in the Universe number of dimensions.
     AffineSystem { origin: Position, axes: Vec<Axis> },
 }
@@ -18,19 +18,16 @@ impl CoordinateSystem {
         }
     }
 
-    pub fn origin(&self) -> Position {
+    pub fn origin(&self) -> &Position {
         match self {
-            CoordinateSystem::Universe => {
-                let origin = [0f64; MAX_K].to_vec();
-                origin.into()
-            }
-            CoordinateSystem::AffineSystem { origin, .. } => origin.clone(),
+            CoordinateSystem::Universe { origin, .. } => origin,
+            CoordinateSystem::AffineSystem { origin, .. } => origin,
         }
     }
 
     pub fn axes(&self) -> Vec<Axis> {
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { .. } => {
                 //FIXME: Generate a CoordinateSystem on the fly or store it as part of the Universe Space?
                 unimplemented!()
             }
@@ -40,7 +37,7 @@ impl CoordinateSystem {
 
     pub fn dimensions(&self) -> usize {
         match self {
-            CoordinateSystem::Universe => MAX_K,
+            CoordinateSystem::Universe { .. } => MAX_K,
             CoordinateSystem::AffineSystem { axes, .. } => axes.len(),
         }
     }
@@ -50,10 +47,10 @@ impl CoordinateSystem {
         let mut high = Vec::with_capacity(self.dimensions());
 
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { .. } => {
                 for _ in 0..self.dimensions() {
-                    low.push(std::f64::MAX);
-                    high.push(std::f64::MIN);
+                    low.push(std::f64::MIN);
+                    high.push(std::f64::MAX);
                 }
             }
             CoordinateSystem::AffineSystem { axes, .. } => {
@@ -84,16 +81,16 @@ impl CoordinateSystem {
     // return a position in the current coordinate system.
     pub fn rebase(&self, position: &Position) -> Result<Position, String> {
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { origin } => {
                 // Ensure the coordinates are encoded into F64 variants of
                 // coordinates by forcing an addition to the origin position
                 // which is expressed as F64 variants. The addition will convert
                 // to F64 automatically.
-                Ok(self.origin().clone() + position.clone())
+                Ok(origin + position)
             }
             CoordinateSystem::AffineSystem { origin, axes } => {
                 let dimensions = axes.len();
-                let translated = position.clone() - origin.clone();
+                let translated = position - origin;
                 let mut rebased = Vec::with_capacity(dimensions);
 
                 for a in axes.iter().take(dimensions) {
@@ -110,16 +107,16 @@ impl CoordinateSystem {
     // return a position in Universe coordinates.
     pub fn absolute_position(&self, position: &Position) -> Result<Position, String> {
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { origin } => {
                 // Ensure the coordinates are encoded into F64 variants of
                 // coordinates by forcing an addition to the origin position
                 // which is expressed as F64 variants. The addition will convert
                 // to F64 automatically.
-                Ok(self.origin().clone() + position.clone())
+                Ok(origin + position)
             }
             CoordinateSystem::AffineSystem { axes, .. } => {
                 // Start from the base origin.
-                let mut rebased = self.origin();
+                let mut rebased = self.origin().clone();
 
                 // Convert to Universe coordinates
                 for k in 0..axes.len() {
@@ -138,7 +135,7 @@ impl CoordinateSystem {
         let mut encoded = vec![];
 
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { .. } => {
                 assert_eq!(position.len(), MAX_K);
                 for c in position {
                     encoded.push(Coordinate::CoordinateF64(*c));
@@ -161,7 +158,7 @@ impl CoordinateSystem {
         let mut decoded = vec![];
 
         match self {
-            CoordinateSystem::Universe => {
+            CoordinateSystem::Universe { .. } => {
                 assert_eq!(position.dimensions(), MAX_K);
                 for c in 0..position.dimensions() {
                     decoded.push(position[c].into());

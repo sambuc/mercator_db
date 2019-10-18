@@ -78,8 +78,8 @@ impl Shape {
                 for _ in 0..dimensions {
                     vr.push(*radius);
                 }
-                let vr: Position = vr.into();
-                (center.clone() - vr.clone(), center.clone() + vr)
+                let vr: &Position = &vr.into();
+                (center - vr, center + vr)
             }
             Shape::BoundingBox(lower, higher) => (lower.clone(), higher.clone()),
         }
@@ -188,7 +188,7 @@ impl Shape {
 
                 let positions = Shape::gen(&lower, &higher)
                     .into_iter()
-                    .filter(|p| (p.clone() - center.clone()).norm() <= radius)
+                    .filter(|p| (p - center).norm() <= radius)
                     .collect();
 
                 Ok(positions)

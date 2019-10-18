@@ -20,7 +20,9 @@ pub const MAX_K: usize = 3;
 lazy_static! {
     static ref UNIVERSE: Space = Space {
         name: "Universe".into(),
-        system: CoordinateSystem::Universe,
+        system: CoordinateSystem::Universe {
+            origin: [0f64; MAX_K].to_vec().into()
+        },
     };
 }
 
@@ -53,7 +55,7 @@ impl Space {
         &self.name
     }
 
-    pub fn origin(&self) -> Position {
+    pub fn origin(&self) -> &Position {
         self.system.origin()
     }
 
