@@ -151,7 +151,8 @@ impl Axis {
         &self.graduation
     }
 
-    // Project a point expressed from the origin of this axis on this axis.
+    // Project a point expressed in Universe coordinates from the origin of this
+    // axis on this axis.
     pub fn project_in(&self, position: &Position) -> Result<Coordinate, String> {
         let max = self.graduation.maximum;
         let min = self.graduation.minimum;
@@ -163,12 +164,18 @@ impl Axis {
 
         // Ensure it is within allowed range: Upper bound.
         if d > max {
-            return Err(format!("Encode: position out of bounds: {} >= {}", d, max));
+            return Err(format!(
+                "project_in: position out of bounds: {} >= {}",
+                d, max
+            ));
         }
 
         // Ensure it is within allowed range: Lower bound.
         if d < min {
-            return Err(format!("Encode: position out of bounds: {} < {}", d, min));
+            return Err(format!(
+                "project_in: position out of bounds: {} < {}",
+                d, min
+            ));
         }
 
         self.encode(d)
@@ -193,12 +200,12 @@ impl Axis {
 
         // Ensure it is within allowed range: Upper bound.
         if d > max {
-            return Err(format!("Encode: position out of bounds: {} >= {}", d, max));
+            return Err(format!("encode: position out of bounds: {} >= {}", d, max));
         }
 
         // Ensure it is within allowed range: Lower bound.
         if d < min {
-            return Err(format!("Encode: position out of bounds: {} < {}", d, min));
+            return Err(format!("encode: position out of bounds: {} < {}", d, min));
         }
 
         // Shift range to zero.

@@ -230,13 +230,13 @@ impl SpaceDB {
 
     // The smallest volume threshold, which is the highest resolution,  will
     // be at position 0
-    pub fn highest_resolution(&self) -> usize {
+    fn highest_resolution(&self) -> usize {
         0
     }
 
     // The highest volume threshold, which is the lowest resolution,  will
     // be at position len - 1
-    pub fn lowest_resolution(&self) -> usize {
+    fn lowest_resolution(&self) -> usize {
         self.resolutions.len() - 1
     }
 
@@ -245,10 +245,7 @@ impl SpaceDB {
         self.values.is_empty()
     }
 
-    // Returns the index to be used by default for the given volume.
-    // The index chosen by default will be the one with the smallest volume
-    // threshold which is greater or equal to the query volume.
-    fn default_resolution(&self, volume: f64) -> usize {
+    fn resolution_from_volume(&self, volume: f64) -> usize {
         for i in 0..self.resolutions.len() {
             if volume <= self.resolutions[i].threshold() {
                 debug!(
@@ -271,7 +268,7 @@ impl SpaceDB {
         self.lowest_resolution()
     }
 
-    fn find_resolution(&self, scale: &[u32]) -> usize {
+    fn resolution_from_scale(&self, scale: &[u32]) -> usize {
         for i in 0..self.resolutions.len() {
             if scale <= self.resolutions[i].scale() {
                 debug!(
@@ -293,7 +290,10 @@ impl SpaceDB {
         self.lowest_resolution()
     }
 
-    pub fn get_resolution(&self, parameters: &CoreQueryParameters) -> usize {
+    // Returns the index to be used by default for the given volume.
+    // The index chosen by default will be the one with the smallest volume
+    // threshold which is greater or equal to the query volume.
+    pub fn resolution(&self, parameters: &CoreQueryParameters) -> usize {
         let CoreQueryParameters {
             threshold_volume,
             resolution,
@@ -306,17 +306,17 @@ impl SpaceDB {
         match resolution {
             None => {
                 if let Some(threshold_volume) = threshold_volume {
-                    self.default_resolution(*threshold_volume)
+                    self.resolution_from_volume(*threshold_volume)
                 } else {
                     self.lowest_resolution()
                 }
             }
-            Some(v) => self.find_resolution(v),
+            Some(v) => self.resolution_from_scale(v),
         }
     }
 
     // Convert the value back to caller's references
-    fn decode(&self, mut objects: Vec<SpaceSetObject>) -> Vec<SpaceSetObject> {
+    fn decode_value(&self, mut objects: Vec<SpaceSetObject>) -> Vec<SpaceSetObject> {
         for o in &mut objects {
             o.set_value(self.values[o.value().u64() as usize]);
         }
@@ -325,6 +325,7 @@ impl SpaceDB {
     }
 
     // Search by Id, a.k.a values
+    // The results are in encoded space coordinates.
     pub fn get_by_id(
         &self,
         id: usize,
@@ -332,7 +333,7 @@ impl SpaceDB {
     ) -> Result<Vec<SpaceSetObject>, String> {
         // Is that ID referenced in the current space?
         if let Ok(offset) = self.values.binary_search(&id.into()) {
-            let index = self.get_resolution(parameters);
+            let index = self.resolution(parameters);
 
             // Convert the view port to the encoded space coordinates
             let space = parameters.db.space(&self.reference_space)?;
@@ -364,12 +365,13 @@ impl SpaceDB {
     }
 
     // Search by positions defining a volume.
+    // The position is expressed in encoded space coordinates, and results are in encoded space coordinates.
     pub fn get_by_positions(
         &self,
         positions: &[Position],
         parameters: &CoreQueryParameters,
     ) -> Result<Vec<SpaceSetObject>, String> {
-        let index = self.get_resolution(threshold_volume, resolution);
+        let index = self.resolution(parameters);
 
         // FIXME: Should I do it here, or add the assumption this is a clean list?
         // Convert the view port to the encoded space coordinates
@@ -392,12 +394,14 @@ impl SpaceDB {
     // * Hyperrectangle (MBB),
     // * HyperSphere (radius around a point),
     // * Point (Specific position)
+
+    // The Shape is expressed in encoded space coordinates, and results are in encoded space coordinates.
     pub fn get_by_shape(
         &self,
         shape: &Shape,
         parameters: &CoreQueryParameters,
     ) -> Result<Vec<SpaceSetObject>, String> {
-        let index = self.get_resolution(threshold_volume, resolution);
+        let index = self.resolution(parameters);
 
         // Convert the view port to the encoded space coordinates
         let space = parameters.db.space(&self.reference_space)?;
