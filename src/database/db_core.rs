@@ -2,6 +2,7 @@ use super::space::Position;
 use super::space::Shape;
 use super::space::Space;
 use super::space_db::SpaceDB;
+use super::space_index::SpaceFields;
 use super::space_index::SpaceSetObject;
 use super::DataBase;
 use super::ResultSet;
@@ -157,14 +158,18 @@ impl Core {
         &self.properties
     }
 
-    fn to_space_object(&self, space_id: &str, list: Vec<SpaceSetObject>) -> Vec<SpaceObject> {
+    fn to_space_object(
+        &self,
+        space_id: &str,
+        list: Vec<(Position, SpaceFields)>,
+    ) -> Vec<SpaceObject> {
         list.into_iter()
-            .map(|o| {
-                let offset: usize = o.value().into();
+            .map(|(position, fields)| {
+                let offset: usize = fields.value().into();
                 let value = self.properties[offset].clone();
                 SpaceObject {
                     space_id: space_id.to_string(),
-                    position: o.position().clone(),
+                    position: position.clone(),
                     value,
                 }
             })
@@ -172,7 +177,7 @@ impl Core {
     }
 
     fn decode_positions(
-        list: &mut [SpaceObject],
+        list: &mut [(Position, &Properties)],
         space: &Space,
         db: &DataBase,
         output_space: &Option<&str>,
@@ -181,18 +186,17 @@ impl Core {
             let unified = db.space(unified_id)?;
 
             // Rebase the point to the requested output space before decoding.
-            for o in list {
-                o.position = unified
-                    .decode(&Space::change_base(&o.position, space, unified)?)?
+            for (position, _) in list {
+                *position = unified
+                    .decode(&Space::change_base(&position, space, unified)?)?
                     .into();
-                o.space_id = unified_id.to_string();
             }
         } else {
             // Decode the positions into f64 values, which are defined in their
             // respective reference space.
-            for o in list {
+            for (position, _) in list {
                 // Simply decode
-                o.position = space.decode(&o.position)?.into();
+                *position = space.decode(&position)?.into();
             }
         }
 
@@ -233,12 +237,14 @@ impl Core {
                 p.push(to.encode(&position)?);
             }
 
-            let r = s.get_by_positions(&p, parameters)?;
-            let mut r = self.to_space_object(s.name(), r);
+            let mut r = s
+                .get_by_positions(&p, parameters)?
+                .into_iter()
+                .map(|(position, fields)| (position, &self.properties[fields.value().as_usize()]))
+                .collect::<Vec<_>>();
+            Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
 
-            Self::decode_positions(&mut r, to, db, output_space)?;
-
-            results.append(&mut r);
+            results.push((s.name(), r));
         }
 
         Ok(results)
@@ -271,12 +277,14 @@ impl Core {
             //            let current_shape = shape.encode(current_space)?;
             //            println!("current shape Encoded: {:?}", current_shape);
 
-            let r = s.get_by_shape(&current_shape, parameters)?;
-            let mut r = self.to_space_object(s.name(), r);
+            let mut r = s
+                .get_by_shape(&current_shape, parameters)?
+                .into_iter()
+                .map(|(position, fields)| (position, &self.properties[fields.value().as_usize()]))
+                .collect::<Vec<_>>();
+            Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
 
-            Self::decode_positions(&mut r, current_space, db, output_space)?;
-
-            results.append(&mut r);
+            results.push((s.name(), r));
         }
 
         Ok(results)
@@ -303,13 +311,17 @@ impl Core {
             // reference space
             for s in &self.space_db {
                 let current_space = db.space(s.name())?;
+                let fields = SpaceFields::new(s.name().into(), offset.into());
 
-                let r = s.get_by_id(offset, parameters)?;
-                let mut r = self.to_space_object(s.name(), r);
+                let mut r = s
+                    .get_by_id(offset, parameters)?
+                    .into_iter()
+                    .map(|position| (position, &self.properties[fields.value().as_usize()]))
+                    .collect::<Vec<_>>();
 
-                Self::decode_positions(&mut r, current_space, db, output_space)?;
+                Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
 
-                results.append(&mut r);
+                results.push((s.name(), r));
             }
         }
 
@@ -350,9 +362,9 @@ impl Core {
                             Ok(v) => {
                                 // Convert the search Volume into Universe.
                                 let mut p = vec![];
-                                for o in v {
+                                for position in v {
                                     if let Ok(position) =
-                                        Space::change_base(o.position(), from, Space::universe())
+                                        Space::change_base(&position, from, Space::universe())
                                     {
                                         p.push(position)
                                     }
@@ -384,12 +396,17 @@ impl Core {
                     p.push(position);
                 }
 
-                let r = s.get_by_positions(&p, parameters)?;
-                let mut r = self.to_space_object(s.name(), r);
+                let mut r = s
+                    .get_by_positions(&p, parameters)?
+                    .into_iter()
+                    .map(|(position, fields)| {
+                        (position, &self.properties[fields.value().as_usize()])
+                    })
+                    .collect::<Vec<_>>();
 
-                Self::decode_positions(&mut r, to, db, output_space)?;
+                Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
 
-                results.append(&mut r);
+                results.push((s.name(), r));
             }
         }
 

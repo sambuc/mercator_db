@@ -45,7 +45,7 @@ fn main() {
         };
         let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
-        println!("{}: {:?}\n", id, r[0]);
+        println!("{}: {:?}\n", id, r[0].1[0]);
 
         let c = CoreQueryParameters {
             db: &db,
@@ -56,7 +56,7 @@ fn main() {
         };
         let r = core.get_by_id(&c, id).unwrap();
         println!("get_by_id {}: {}", id, r.len());
-        println!("{}: {:?}\n", id, r[0]);
+        println!("{}: {:?}\n", id, r[0].1[0]);
 
         let c = CoreQueryParameters {
             db: &db,
@@ -68,7 +68,7 @@ fn main() {
         let r = core.get_by_label(&c, id).unwrap();
         println!("get_by_label {}: {}", id, r.len());
         if !r.is_empty() {
-            println!("{}: {:?}\n", id, r[0]);
+            println!("{}: {:?}\n", id, r[0].1[0]);
         }
 
         let lower = space.encode(&[0.2, 0.2, 0.2]).unwrap();
@@ -85,15 +85,41 @@ fn main() {
         };
         let r = core.get_by_shape(&c, &shape, "std").unwrap();
         println!("get_by_shape {:?}: {}", shape, r.len());
-        println!("{:?}: {:?}\n", shape, r[0]);
+        println!("{:?}: {:?}\n", shape, r[0].1[0]);
 
-        let a = r.iter().filter(|o| o.value.id() == id).collect::<Vec<_>>();
+        let a = r
+            .iter()
+            .filter_map(|(space, v)| {
+                let v = v
+                    .iter()
+                    .filter(|(_, properties)| properties.id() == id)
+                    .collect::<Vec<_>>();
+                if v.is_empty() {
+                    None
+                } else {
+                    Some((space, v))
+                }
+            })
+            .collect::<Vec<_>>();
         println!("get_by_shape A {:?} filtered on {}: {}", shape, id, a.len());
         if !a.is_empty() {
-            println!("{:?}\n", a[0]);
+            println!("{:?}\n", a[0].1[0]);
         }
 
-        let a = r.iter().filter(|o| o.value.id() != id).collect::<Vec<_>>();
+        let a = r
+            .iter()
+            .filter_map(|(space, v)| {
+                let v = v
+                    .iter()
+                    .filter(|(_, properties)| properties.id() != id)
+                    .collect::<Vec<_>>();
+                if v.is_empty() {
+                    None
+                } else {
+                    Some((space, v))
+                }
+            })
+            .collect::<Vec<_>>();
         println!(
             "get_by_shape !A {:?} filtered on {}: {}",
             shape,
@@ -101,16 +127,17 @@ fn main() {
             a.len()
         );
         if !a.is_empty() {
-            println!("{:?}\n", a[0]);
+            println!("{:?}\n", a[0].1[0]);
         }
 
         println!(
             "\nSPACE OBJECT:\n\n{}",
             serde_json::to_string_pretty(space).unwrap()
         );
+        //FIXME: Not returning SpatialObjects by default
         println!(
             "\nSPATIAL OBJECT:\n\n{}",
-            serde_json::to_string_pretty(a[0]).unwrap()
+            serde_json::to_string_pretty(&a[0]).unwrap()
         );
     }
 }

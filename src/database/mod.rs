@@ -14,9 +14,11 @@ pub use db_core::CoreQueryParameters;
 pub use db_core::Properties;
 use space::Position;
 use space::Space;
+pub use space_index::SpaceFields;
 pub use space_index::SpaceSetObject;
 
-pub type ResultSet = Result<Vec<SpaceObject>, String>;
+// (Space Name, Position, Fields)
+pub type ResultSet<'r> = Result<Vec<(&'r String, Vec<(Position, &'r Properties)>)>, String>;
 pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
 type CoreIndex = ironsea_index_hashmap::Index<Core, String>;
 

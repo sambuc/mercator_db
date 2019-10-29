@@ -39,6 +39,10 @@ impl Coordinate {
             Coordinate::CoordinateF64(_v) => unreachable!(),
         }
     }
+
+    pub fn as_usize(&self) -> usize {
+        self.u64() as usize
+    }
 }
 
 /*

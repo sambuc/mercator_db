@@ -7,7 +7,7 @@ use super::space::Position;
 use super::space::Shape;
 use super::SpaceId;
 
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Hash)]
 pub struct SpaceSetObject {
     space_id: SpaceId,
     position: Position,
@@ -58,6 +58,22 @@ impl SpaceFields {
     pub fn new(space_id: SpaceId, value: Coordinate) -> Self {
         SpaceFields { space_id, value }
     }
+    /*
+        pub fn id(&self) -> &Coordinate {
+            &self.value
+        }
+
+        pub fn space_id(&self) -> &SpaceId {
+            &self.space_id
+        }
+    */
+    pub fn value(&self) -> &Coordinate {
+        &self.value
+    }
+
+    pub fn set_value(&mut self, value: Coordinate) {
+        self.value = value;
+    }
 }
 
 impl PartialEq for SpaceFields {
@@ -66,13 +82,13 @@ impl PartialEq for SpaceFields {
     }
 }
 
-impl ironsea_index::Record<Position> for SpaceSetObject {
+impl ironsea_index::Record<Position> for &SpaceSetObject {
     fn key(&self) -> Position {
         self.position.clone()
     }
 }
 
-impl ironsea_index::RecordFields<SpaceFields> for SpaceSetObject {
+impl ironsea_index::RecordFields<SpaceFields> for &SpaceSetObject {
     fn fields(&self) -> SpaceFields {
         SpaceFields {
             space_id: self.space_id().clone(),
@@ -109,17 +125,17 @@ impl SpaceIndex {
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    pub fn find(&self, key: &Position) -> Vec<SpaceSetObject> {
+    pub fn find(&self, key: &Position) -> Vec<&SpaceFields> {
         self.index.find(key)
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    fn find_range(&self, start: &Position, end: &Position) -> Vec<SpaceSetObject> {
+    fn find_range(&self, start: &Position, end: &Position) -> Vec<(Position, &SpaceFields)> {
         self.index.find_range(start, end)
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    pub fn find_by_value(&self, id: &SpaceFields) -> Vec<SpaceSetObject> {
+    pub fn find_by_value(&self, id: &SpaceFields) -> Vec<Position> {
         self.index.find_by_value(id)
     }
 
@@ -128,21 +144,22 @@ impl SpaceIndex {
         &self,
         shape: &Shape,
         view_port: &Option<Shape>,
-    ) -> Result<Vec<SpaceSetObject>, String> {
+    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
         match shape {
             Shape::Point(position) => {
                 if let Some(mbb) = view_port {
-                    if mbb.contains(position) {
-                        Ok(self.find(position))
-                    } else {
-                        Err(format!(
+                    if !mbb.contains(position) {
+                        return Err(format!(
                             "View port '{:?}' does not contain '{:?}'",
                             mbb, position
-                        ))
+                        ));
                     }
-                } else {
-                    Ok(self.find(position))
                 }
+                Ok(self
+                    .find(position)
+                    .into_iter()
+                    .map(|fields| (position.clone(), fields))
+                    .collect())
             }
             Shape::BoundingBox(bl, bh) => {
                 if let Some(mbb) = view_port {
@@ -198,7 +215,7 @@ impl SpaceIndex {
                 let results = self
                     .find_range(&lower, &higher)
                     .into_iter()
-                    .filter(|p| (p.position() - center).norm() <= radius.f64())
+                    .filter(|(position, _)| (position - center).norm() <= radius.f64())
                     .collect();
 
                 Ok(results)
