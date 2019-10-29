@@ -1,7 +1,6 @@
 use std::cmp::Ord;
 
-use ironsea_index::IndexedOwned;
-use ironsea_table_vector::VectorTable;
+use ironsea_index::IndexedDestructured;
 
 use super::space::Coordinate;
 use super::space::Position;
@@ -82,23 +81,7 @@ impl ironsea_index::RecordFields<SpaceFields> for SpaceSetObject {
     }
 }
 
-impl ironsea_index::RecordBuild<Position, SpaceFields, SpaceSetObject> for SpaceSetObject {
-    fn build(key: &Position, fields: &SpaceFields) -> SpaceSetObject {
-        SpaceSetObject {
-            space_id: fields.space_id.clone(),
-            position: key.clone(),
-            value: fields.value,
-        }
-    }
-}
-
-pub type SpaceSetIndex = ironsea_index_sfc_dbc::IndexOwned<
-    VectorTable<SpaceSetObject>,
-    SpaceSetObject,
-    Position,
-    Coordinate,
-    SpaceFields,
->;
+pub type SpaceSetIndex = ironsea_index_sfc_dbc::IndexOwned<SpaceFields, Position, Coordinate>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceIndex {

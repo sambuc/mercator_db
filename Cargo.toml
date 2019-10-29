@@ -30,8 +30,6 @@ path = "src/main.rs"
 ironsea_index = "^0.1"
 ironsea_index_sfc_dbc = "^0.1"
 ironsea_index_hashmap = "^0.1"
-ironsea_table = "^0.1"
-ironsea_table_vector = "^0.1"
 
 memmap = "^0.7"
 lazy_static = "^1.3"

@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::fs::File;
 
 use ironsea_index::Indexed;
-use ironsea_table_vector::VectorTable;
 use memmap::Mmap;
 
 pub use db_core::Core;
@@ -18,8 +17,8 @@ use space::Space;
 pub use space_index::SpaceSetObject;
 
 pub type ResultSet = Result<Vec<SpaceObject>, String>;
-pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<VectorTable<Space>, Space, String>;
-type CoreIndex = ironsea_index_hashmap::Index<VectorTable<Core>, Core, String>;
+pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
+type CoreIndex = ironsea_index_hashmap::Index<Core, String>;
 
 #[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub struct SpaceId(String);
@@ -65,8 +64,8 @@ pub struct DataBase {
 impl DataBase {
     pub fn new(spaces: Vec<Space>, cores: Vec<Core>) -> Self {
         DataBase {
-            reference_spaces: ReferenceSpaceIndex::new(VectorTable::new(spaces)),
-            cores: CoreIndex::new(VectorTable::new(cores)),
+            reference_spaces: ReferenceSpaceIndex::new(spaces.into_iter()),
+            cores: CoreIndex::new(cores.into_iter()),
         }
     }
 

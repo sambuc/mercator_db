@@ -5,8 +5,6 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use ironsea_table_vector::VectorTable;
-
 use super::space::Coordinate;
 use super::space::Position;
 use super::space::Shape;
@@ -101,11 +99,7 @@ impl SpaceDB {
                 let shift = if count >= 31 { 31 } else { count };
                 count += 1;
                 indices.push((
-                    SpaceSetIndex::new(
-                        &VectorTable::new(space_objects.to_vec()),
-                        DIMENSIONS,
-                        CELL_BITS,
-                    ),
+                    SpaceSetIndex::new(space_objects.into_iter(), DIMENSIONS, CELL_BITS),
                     vec![power.0, power.0, power.0],
                     shift,
                 ));
@@ -124,11 +118,7 @@ impl SpaceDB {
 
                 // Insert Full resolution index.
                 indices.push((
-                    SpaceSetIndex::new(
-                        &VectorTable::new(space_objects.clone()),
-                        DIMENSIONS,
-                        CELL_BITS,
-                    ),
+                    SpaceSetIndex::new(space_objects.into_iter(), DIMENSIONS, CELL_BITS),
                     vec![count, count, count],
                     0, // Smallest value => highest resolution
                 ));
@@ -167,11 +157,7 @@ impl SpaceDB {
                     }
 
                     indices.push((
-                        SpaceSetIndex::new(
-                            &VectorTable::new(space_objects.to_vec()),
-                            DIMENSIONS,
-                            CELL_BITS,
-                        ),
+                        SpaceSetIndex::new(space_objects.into_iter(), DIMENSIONS, CELL_BITS),
                         vec![count, count, count],
                         shift,
                     ));
@@ -186,7 +172,7 @@ impl SpaceDB {
             } else {
                 // Generate only full-scale.
                 indices.push((
-                    SpaceSetIndex::new(&VectorTable::new(space_objects), DIMENSIONS, CELL_BITS),
+                    SpaceSetIndex::new(space_objects.into_iter(), DIMENSIONS, CELL_BITS),
                     vec![0, 0, 0],
                     0,
                 ));
