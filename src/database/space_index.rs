@@ -5,11 +5,10 @@ use ironsea_index::IndexedDestructured;
 use super::space::Coordinate;
 use super::space::Position;
 use super::space::Shape;
-use super::SpaceId;
 
 #[derive(Clone, Debug, Hash)]
 pub struct SpaceSetObject {
-    space_id: SpaceId,
+    space_id: String,
     position: Position,
     value: Coordinate, // Efficiently store the offset within the SpaceDB values vector
 }
@@ -27,7 +26,7 @@ impl SpaceSetObject {
         &self.value
     }
 
-    pub fn space_id(&self) -> &SpaceId {
+    pub fn space_id(&self) -> &String {
         &self.space_id
     }
 
@@ -50,23 +49,19 @@ impl SpaceSetObject {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceFields {
-    space_id: SpaceId,
+    space_id: String,
     value: Coordinate,
 }
 
 impl SpaceFields {
-    pub fn new(space_id: SpaceId, value: Coordinate) -> Self {
+    pub fn new(space_id: String, value: Coordinate) -> Self {
         SpaceFields { space_id, value }
     }
-    /*
-        pub fn id(&self) -> &Coordinate {
-            &self.value
-        }
 
-        pub fn space_id(&self) -> &SpaceId {
-            &self.space_id
-        }
-    */
+    pub fn space_id(&self) -> &String {
+        &self.space_id
+    }
+
     pub fn value(&self) -> &Coordinate {
         &self.value
     }

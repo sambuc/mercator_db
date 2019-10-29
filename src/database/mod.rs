@@ -22,34 +22,6 @@ pub type ResultSet<'r> = Result<Vec<(&'r String, Vec<(Position, &'r Properties)>
 pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
 type CoreIndex = ironsea_index_hashmap::Index<Core, String>;
 
-#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub struct SpaceId(String);
-
-impl SpaceId {
-    pub fn new<S>(space_name: S) -> Self
-    where
-        S: Into<String>,
-    {
-        SpaceId(space_name.into())
-    }
-
-    pub fn get(&self, index: &ReferenceSpaceIndex) -> Self {
-        let s = index.find(&self.0);
-        assert_eq!(s.len(), 1);
-
-        SpaceId(s[0].name().clone())
-    }
-}
-
-impl<S> From<S> for SpaceId
-where
-    S: Into<String>,
-{
-    fn from(id: S) -> Self {
-        SpaceId(id.into())
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
 pub struct SpaceObject {
     pub space_id: String,
@@ -162,7 +134,7 @@ impl DataBase {
         }
     }
 
-    pub fn space_id<S>(&self, name: S) -> Result<SpaceId, String>
+    pub fn space_id<S>(&self, name: S) -> Result<String, String>
     where
         S: Into<String>,
     {
@@ -170,7 +142,7 @@ impl DataBase {
         let r = self.reference_spaces.find(&name);
         let s: &Space = Self::check_exactly_one(&r, "spaces", &name)?;
 
-        Ok(SpaceId(s.name().clone()))
+        Ok(s.name().clone())
     }
 
     // Lookup a space within the reference spaces registered

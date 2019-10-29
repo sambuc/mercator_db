@@ -106,7 +106,7 @@ impl Core {
             let filtered = space_objects
                 .iter()
                 .filter_map(|object| {
-                    if &object.space_id().0 == space.name() {
+                    if object.space_id() == space.name() {
                         let position: Vec<f64> = object.position().into();
                         Some(SpaceSetObject::new(
                             space.name(),
