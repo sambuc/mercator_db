@@ -30,6 +30,7 @@ impl CoreQueryParameters<'_> {
     }
 }
 
+// FIXME: Ids are expected unique, irrespective of the enum variant!
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Properties {
     Feature(String),
@@ -291,7 +292,11 @@ impl Core {
     }
 
     // Search by Id, a.k.a values
-    pub fn get_by_id<S>(&self, parameters: &CoreQueryParameters, id: S) -> ResultSet
+    pub fn get_by_id<S>(
+        &self,
+        parameters: &CoreQueryParameters,
+        id: S,
+    ) -> Result<Vec<(&String, Vec<Position>)>, String>
     where
         S: Into<String>,
     {
@@ -311,17 +316,29 @@ impl Core {
             // reference space
             for s in &self.space_db {
                 let current_space = db.space(s.name())?;
-                let fields = SpaceFields::new(s.name().into(), offset.into());
 
-                let mut r = s
-                    .get_by_id(offset, parameters)?
-                    .into_iter()
-                    .map(|position| (position, &self.properties[fields.value().as_usize()]))
-                    .collect::<Vec<_>>();
+                let mut positions = s.get_by_id(offset, parameters)?;
 
-                Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
+                //Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
+                if let Some(unified_id) = *output_space {
+                    let unified = db.space(unified_id)?;
 
-                results.push((s.name(), r));
+                    // Rebase the point to the requested output space before decoding.
+                    for position in &mut positions {
+                        *position = unified
+                            .decode(&Space::change_base(position, current_space, unified)?)?
+                            .into();
+                    }
+                } else {
+                    // Decode the positions into f64 values, which are defined in their
+                    // respective reference space.
+                    for position in &mut positions {
+                        // Simply decode
+                        *position = current_space.decode(position)?.into();
+                    }
+                }
+
+                results.push((s.name(), positions));
             }
         }
 
