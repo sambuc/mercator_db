@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use crate::database;
 use database::space;
 use database::Core;
-use database::DataBase;
-use database::SpaceObject;
 use database::SpaceSetObject;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -116,40 +114,43 @@ impl From<&space::Space> for Space {
     }
 }
 
-pub fn to_spatial_objects(db: &DataBase, list: Vec<SpaceObject>) -> Vec<SpatialObject> {
+impl From<&&database::Properties> for Properties {
+    fn from(p: &&database::Properties) -> Self {
+        Properties {
+            type_name: p.type_name().to_string(),
+            id: p.id().clone(),
+        }
+    }
+}
+
+pub fn to_spatial_objects(
+    list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
+) -> Vec<SpatialObject> {
     // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
-    let mut properties = HashMap::new();
-    for object in list {
-        let k = object.value.id().clone();
-        properties.entry(k).or_insert_with(|| vec![]).push(object);
+    let mut hashmap = HashMap::new();
+    for (space, v) in list {
+        for (position, properties) in v {
+            hashmap
+                .entry(properties)
+                .or_insert_with(|| vec![])
+                .push((space, position));
+        }
     }
 
     let mut results = vec![];
-    for (k, v) in properties.iter() {
+    for (properties, v) in hashmap.iter() {
         // Group by spaces, to collect points shapes together
         let shapes = v
             .iter()
-            .filter_map(|o| match db.space(&o.space_id) {
-                Err(_) => None,
-                Ok(space) => {
-                    if let Ok(vertices) = space.decode(&o.position) {
-                        Some(Shape {
-                            type_name: "Point".to_string(),
-                            reference_space: o.space_id.clone(),
-                            vertices: vec![vertices],
-                        })
-                    } else {
-                        None
-                    }
-                }
+            .map(|(space_id, position)| Shape {
+                type_name: "Point".to_string(),
+                reference_space: (*space_id).clone(),
+                vertices: vec![position.into()],
             })
             .collect();
 
         results.push(SpatialObject {
-            properties: Properties {
-                type_name: "Feature".to_string(),
-                id: k.to_string(),
-            },
+            properties: properties.into(),
             shapes,
         });
     }
