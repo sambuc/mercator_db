@@ -2,11 +2,9 @@ use super::space::Position;
 use super::space::Shape;
 use super::space::Space;
 use super::space_db::SpaceDB;
-use super::space_index::SpaceFields;
 use super::space_index::SpaceSetObject;
 use super::DataBase;
 use super::ResultSet;
-use crate::SpaceObject;
 
 pub struct CoreQueryParameters<'a> {
     pub db: &'a DataBase,
@@ -66,16 +64,6 @@ impl Properties {
         Properties::Unknown(id.into(), type_name.into())
     }
 }
-
-// FIXME: Which is faster, the code below or the automatically generated
-//        implementation?
-/*
-impl PartialEq for Properties {
-    fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id() && self.type_name() == other.type_name()
-    }
-}
-*/
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Core {
@@ -157,24 +145,6 @@ impl Core {
 
     pub fn keys(&self) -> &Vec<Properties> {
         &self.properties
-    }
-
-    fn to_space_object(
-        &self,
-        space_id: &str,
-        list: Vec<(Position, SpaceFields)>,
-    ) -> Vec<SpaceObject> {
-        list.into_iter()
-            .map(|(position, fields)| {
-                let offset: usize = fields.value().into();
-                let value = self.properties[offset].clone();
-                SpaceObject {
-                    space_id: space_id.to_string(),
-                    position: position.clone(),
-                    value,
-                }
-            })
-            .collect()
     }
 
     fn decode_positions(
@@ -428,11 +398,5 @@ impl Core {
         }
 
         Ok(results)
-    }
-}
-
-impl ironsea_index::Record<String> for Core {
-    fn key(&self) -> String {
-        self.title.clone()
     }
 }

@@ -29,7 +29,6 @@ pub struct SpaceObject {
     pub value: Properties,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DataBase {
     reference_spaces: ReferenceSpaceIndex,
     cores: CoreIndex,
@@ -85,7 +84,7 @@ impl DataBase {
         }
     }
 
-    pub fn load_core(name: &str) -> Result<(Vec<Space>, Core), String> {
+    fn load_core(name: &str) -> Result<(Vec<Space>, Core), String> {
         let mmap = DataBase::mmap_file(&name)?;
 
         match bincode::deserialize(&mmap[..]) {
@@ -177,6 +176,12 @@ impl DataBase {
 }
 
 impl ironsea_index::Record<String> for Space {
+    fn key(&self) -> String {
+        self.name().clone()
+    }
+}
+
+impl ironsea_index::Record<String> for Core {
     fn key(&self) -> String {
         self.name().clone()
     }
