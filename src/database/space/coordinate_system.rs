@@ -25,13 +25,13 @@ impl CoordinateSystem {
         }
     }
 
-    pub fn axes(&self) -> Vec<Axis> {
+    pub fn axes(&self) -> &Vec<Axis> {
         match self {
             CoordinateSystem::Universe { .. } => {
                 //FIXME: Generate a CoordinateSystem on the fly or store it as part of the Universe Space?
                 unimplemented!()
             }
-            CoordinateSystem::AffineSystem { axes, .. } => axes.clone(),
+            CoordinateSystem::AffineSystem { axes, .. } => axes,
         }
     }
 

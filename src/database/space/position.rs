@@ -384,14 +384,15 @@ impl From<Vec<u64>> for Position {
 
 impl From<Position> for Vec<f64> {
     fn from(position: Position) -> Self {
-        let point: Vec<&Coordinate> = (&position).into();
-
-        point.into_iter().map(|c| c.into()).collect()
+        (&position).into()
     }
 }
+
 impl From<&Position> for Vec<f64> {
-    fn from(coordinates: &Position) -> Self {
-        coordinates.clone().into()
+    fn from(position: &Position) -> Self {
+        let point: Vec<&Coordinate> = position.into();
+
+        point.into_iter().map(|c| c.into()).collect()
     }
 }
 

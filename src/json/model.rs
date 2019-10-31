@@ -54,7 +54,7 @@ pub struct Properties {
 impl From<&space::Graduation> for Graduation {
     fn from(g: &space::Graduation) -> Self {
         Graduation {
-            set: g.set.clone().into(),
+            set: (&g.set).into(),
             minimum: g.minimum,
             maximum: g.maximum,
             steps: g.steps,
@@ -69,7 +69,7 @@ impl From<Axis> for space::Axis {
         space::Axis::new(
             &axis.measurement_unit,
             axis.unit_vector,
-            g.set.into(),
+            g.set.as_str().into(),
             g.minimum,
             g.maximum,
             g.steps,
@@ -108,7 +108,7 @@ impl From<&space::Space> for Space {
 
         Space {
             name: space.name().clone(),
-            origin: space.origin().clone().into(),
+            origin: space.origin().into(),
             axes,
         }
     }
@@ -196,7 +196,8 @@ pub fn build_index(
 
                 space_set_objects.push(SpaceSetObject::new(
                     &point.reference_space,
-                    point.vertices[0].clone().into(),
+                    // Use a reference to prevent an allocation
+                    (&point.vertices[0]).into(),
                     value.into(),
                 ))
             }
@@ -205,7 +206,7 @@ pub fn build_index(
         properties.append(&mut properties_hm.drain().map(|(_, v)| v).collect::<Vec<_>>());
     }
 
-    properties.sort_unstable_by_key(|p| p.id().clone());
+    properties.sort_unstable_by(|a, b| a.id().cmp(b.id()));
 
     space_set_objects.iter_mut().for_each(|object| {
         let id = properties_ref[object.value().u64() as usize];

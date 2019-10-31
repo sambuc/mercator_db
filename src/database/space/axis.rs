@@ -9,9 +9,9 @@ pub enum NumberSet {
     R,
 }
 
-impl From<String> for NumberSet {
-    fn from(set: String) -> Self {
-        match set.as_str() {
+impl From<&str> for NumberSet {
+    fn from(set: &str) -> Self {
+        match set {
             "N" => NumberSet::N,
             "Z" => NumberSet::Z,
             "Q" => NumberSet::Q,
@@ -21,8 +21,8 @@ impl From<String> for NumberSet {
     }
 }
 
-impl From<NumberSet> for String {
-    fn from(set: NumberSet) -> String {
+impl From<&NumberSet> for String {
+    fn from(set: &NumberSet) -> String {
         let s = match set {
             NumberSet::N => "N",
             NumberSet::Z => "R",

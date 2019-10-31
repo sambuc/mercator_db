@@ -167,7 +167,7 @@ impl Shape {
         // Initialise the current value
         let mut current = lower.clone();
 
-        // Add the first Position to the results, as nxt will return the following one.
+        // Add the first Position to the results, as next will return the following one.
         results.push(current.clone());
         while next(lower.dimensions(), &lower, higher, &mut current) {
             results.push(current.clone())

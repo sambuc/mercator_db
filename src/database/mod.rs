@@ -94,15 +94,10 @@ impl DataBase {
     }
 
     // Check if the given space_id is referenced in the DB.
-    fn is_empty<S>(&self, id: S) -> bool
-    where
-        S: Into<String>,
-    {
-        let id = id.into();
-
+    fn is_empty(&self, id: &str) -> bool {
         for s in self.cores.keys() {
             let core: &Core = self.cores.find(s)[0];
-            if !core.is_empty(id.clone()) {
+            if !core.is_empty(id) {
                 return false;
             }
         }
@@ -110,38 +105,24 @@ impl DataBase {
         true
     }
 
-    fn check_exactly_one<'t, T, S>(list: &[&'t T], name: S, value: S) -> Result<&'t T, String>
-    where
-        S: Into<String>,
-    {
+    fn check_exactly_one<'t, T>(list: &[&'t T], name: &str, value: &str) -> Result<&'t T, String> {
         if list.len() > 1 {
             Err(format!(
                 "Multiple {} registered under `{}`: {}",
-                name.into(),
-                value.into(),
+                name,
+                value,
                 list.len()
             ))
         } else if list.is_empty() {
             Err(format!(
                 "No {} registered under `{}`: {}",
-                name.into(),
-                value.into(),
+                name,
+                value,
                 list.len()
             ))
         } else {
             Ok(&list[0])
         }
-    }
-
-    pub fn space_id<S>(&self, name: S) -> Result<String, String>
-    where
-        S: Into<String>,
-    {
-        let name = name.into();
-        let r = self.reference_spaces.find(&name);
-        let s: &Space = Self::check_exactly_one(&r, "spaces", &name)?;
-
-        Ok(s.name().clone())
     }
 
     // Lookup a space within the reference spaces registered
@@ -151,13 +132,12 @@ impl DataBase {
 
     // Lookup a space within the reference spaces registered
     pub fn space(&self, name: &str) -> Result<&Space, String> {
-        let name = name.into();
-        if &name == space::Space::universe().name() {
+        if name == space::Space::universe().name() {
             Ok(space::Space::universe())
         } else {
-            let r = self.reference_spaces.find(&name);
+            let r = self.reference_spaces.find(&name.to_string());
 
-            Self::check_exactly_one(&r, "spaces", &name)
+            Self::check_exactly_one(&r, "spaces", name)
         }
     }
 
@@ -168,10 +148,9 @@ impl DataBase {
 
     // Lookup a dataset within the datasets registered
     pub fn core(&self, name: &str) -> Result<&Core, String> {
-        let name = name.into();
-        let r = self.cores.find(&name);
+        let r = self.cores.find(&name.to_string());
 
-        Self::check_exactly_one(&r, "cores", &name)
+        Self::check_exactly_one(&r, "cores", name)
     }
 }
 

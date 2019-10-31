@@ -120,13 +120,9 @@ impl Core {
     }
 
     // Check if the given space_id is referenced in the current core.
-    pub fn is_empty<S>(&self, space_id: S) -> bool
-    where
-        S: Into<String>,
-    {
-        let id = space_id.into();
+    pub fn is_empty(&self, space_id: &str) -> bool {
         for s in &self.space_db {
-            if s.name() == &id {
+            if s.name() == space_id {
                 return s.is_empty();
             }
         }

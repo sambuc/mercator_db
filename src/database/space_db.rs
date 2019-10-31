@@ -60,8 +60,9 @@ impl SpaceDB {
 
             // Limit temporary values lifetimes
             {
-                // Sort by values, smaller to bigger.
+                // Sort by values, smaller to bigger. We clone in order leave as-is scales.
                 let mut exps = scales.clone();
+                // FIXME: This should be done using all the values, somehow
                 exps.sort_unstable_by_key(|v| v[0]);
 
                 let mut previous = 0u32;

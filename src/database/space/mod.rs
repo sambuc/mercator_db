@@ -59,7 +59,7 @@ impl Space {
         self.system.origin()
     }
 
-    pub fn axes(&self) -> Vec<Axis> {
+    pub fn axes(&self) -> &Vec<Axis> {
         self.system.axes()
     }
 
