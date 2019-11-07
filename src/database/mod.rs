@@ -93,18 +93,6 @@ impl DataBase {
         }
     }
 
-    // Check if the given space_id is referenced in the DB.
-    fn is_empty(&self, id: &str) -> bool {
-        for s in self.cores.keys() {
-            let core: &Core = self.cores.find(s)[0];
-            if !core.is_empty(id) {
-                return false;
-            }
-        }
-
-        true
-    }
-
     fn check_exactly_one<'t, T>(list: &[&'t T], name: &str, value: &str) -> Result<&'t T, String> {
         if list.len() > 1 {
             Err(format!(

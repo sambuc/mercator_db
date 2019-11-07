@@ -90,23 +90,27 @@ impl Core {
         // Sort out the space, and create a SpaceDB per reference space
         let mut space_dbs = vec![];
 
+        // We cannot return less that the total number of individual Ids stored
+        // in the index for a full-volume query.
+        let max_elements = if let Some(elem) = max_elements {
+            Some(elem.max(properties.len()))
+        } else {
+            None
+        };
+
         for space in spaces {
             // Filter the points of this space, and encode them before creating the index.
-            let filtered = space_objects
+            let mut filtered = space_objects
                 .iter()
-                .filter_map(|object| {
-                    if object.space_id() == space.name() {
-                        let position: Vec<f64> = object.position().into();
-                        Some(SpaceSetObject::new(
-                            space.name(),
-                            space.encode(&position).unwrap(),
-                            *object.value(),
-                        ))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+                .filter(|object| object.space_id() == space.name())
+                // Clone only the selected objects, not all of them!
+                .cloned()
+                .collect::<Vec<_>>();
+
+            for object in filtered.iter_mut() {
+                let position: Vec<f64> = object.position().into();
+                object.set_position(space.encode(&position).unwrap());
+            }
 
             space_dbs.push(SpaceDB::new(&space, filtered, scales.clone(), max_elements))
         }
@@ -117,18 +121,6 @@ impl Core {
             properties,
             space_db: space_dbs,
         }
-    }
-
-    // Check if the given space_id is referenced in the current core.
-    pub fn is_empty(&self, space_id: &str) -> bool {
-        for s in &self.space_db {
-            if s.name() == space_id {
-                return s.is_empty();
-            }
-        }
-
-        // Not found, so the space is empty.
-        true
     }
 
     pub fn name(&self) -> &String {

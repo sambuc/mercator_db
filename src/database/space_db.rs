@@ -1,11 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use super::space::Coordinate;
 use super::space::Position;
 use super::space::Shape;
 use super::space::Space;
@@ -18,7 +16,6 @@ use super::CoreQueryParameters;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceDB {
     reference_space: String,
-    values: Vec<Coordinate>,
     resolutions: Vec<SpaceIndex>,
 }
 
@@ -32,21 +29,6 @@ impl SpaceDB {
         //FIXME: Remove hard-coded constants for dimensions & bit length of morton codes.
         const DIMENSIONS: usize = 3;
         const CELL_BITS: usize = 10;
-
-        let mut values = space_objects
-            .iter()
-            .map(|object| *object.value())
-            .collect::<HashSet<_>>()
-            .drain()
-            .collect::<Vec<_>>();
-
-        values.sort_unstable_by_key(|&c| c.u64());
-
-        space_objects.iter_mut().for_each(|object| {
-            // Update the values to point into the local (shorter) mapping array.
-            let val = values.binary_search(object.value()).unwrap();
-            object.set_value(val.into());
-        });
 
         // Build the set of SpaceIndices.
         let mut resolutions = vec![];
@@ -108,9 +90,6 @@ impl SpaceDB {
         } else {
             // Generate scales, following max_elements
             if let Some(max_elements) = max_elements {
-                // We cannot return less that the total number of individual Ids stored
-                // in the index for a full-volume query.
-                let max_elements = max_elements.max(values.len());
                 let mut count = 0;
 
                 // The next index should contain at most half the number of
@@ -127,8 +106,12 @@ impl SpaceDB {
                 // Generate coarser indices, until we reach the expect max_element
                 // values or we can't define bigger bit shift.
                 loop {
-                    // Make sure we do not shift more position than available
-                    let shift = if count >= 31 { 31 } else { count };
+                    // Make sure we do not shift more position than available as well.
+                    if space_objects.len() <= max_elements || count > 31 {
+                        break;
+                    }
+                    let shift = count;
+
                     count += 1;
                     space_objects = space_objects
                         .into_iter()
@@ -162,10 +145,6 @@ impl SpaceDB {
                         vec![count, count, count],
                         shift,
                     ));
-
-                    if space_objects.len() <= max_elements || count == std::u32::MAX {
-                        break;
-                    }
                 }
 
             // Generate indices as long as max is smaller than the number of point located in the whole space.
@@ -206,7 +185,6 @@ impl SpaceDB {
 
         SpaceDB {
             reference_space: reference_space.name().clone(),
-            values,
             resolutions,
         }
     }
@@ -225,11 +203,6 @@ impl SpaceDB {
     // be at position len - 1
     fn lowest_resolution(&self) -> usize {
         self.resolutions.len() - 1
-    }
-
-    // Is this Space DB empty?
-    pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
     }
 
     fn resolution_from_volume(&self, volume: f64) -> usize {
@@ -302,13 +275,6 @@ impl SpaceDB {
         }
     }
 
-    // Convert the value back to caller's references
-    fn decode_value(&self, objects: &mut Vec<(Position, SpaceFields)>) {
-        for (_, fields) in objects.iter_mut() {
-            fields.set_value(self.values[fields.value().u64() as usize]);
-        }
-    }
-
     // Search by Id, a.k.a values
     // The results are in encoded space coordinates.
     pub fn get_by_id(
@@ -317,33 +283,26 @@ impl SpaceDB {
         parameters: &CoreQueryParameters,
     ) -> Result<Vec<(Position)>, String> {
         // Is that ID referenced in the current space?
-        if let Ok(offset) = self.values.binary_search(&id.into()) {
-            let index = self.resolution(parameters);
+        let index = self.resolution(parameters);
 
-            // Convert the view port to the encoded space coordinates
-            let space = parameters.db.space(&self.reference_space)?;
-            let view_port = parameters.view_port(space);
+        // Convert the view port to the encoded space coordinates
+        let space = parameters.db.space(&self.reference_space)?;
+        let view_port = parameters.view_port(space);
 
-            // Select the objects
-            let objects = self.resolutions[index]
-                .find_by_value(&SpaceFields::new(self.name().into(), offset.into()));
+        // Select the objects
+        let objects =
+            self.resolutions[index].find_by_value(&SpaceFields::new(self.name().into(), id.into()));
 
-            let results = if let Some(view_port) = view_port {
-                objects
-                    .into_iter()
-                    .filter(|position| view_port.contains(position))
-                    .collect::<Vec<_>>()
-            } else {
-                objects
-            };
-
-            // Convert the Value back to caller's references
-            // Here we do not use decode() as we have a single id value to manage.
-
-            Ok(results)
+        let results = if let Some(view_port) = view_port {
+            objects
+                .into_iter()
+                .filter(|position| view_port.contains(position))
+                .collect::<Vec<_>>()
         } else {
-            Ok(vec![])
-        }
+            objects
+        };
+
+        Ok(results)
     }
 
     // Search by positions defining a volume.
@@ -352,7 +311,7 @@ impl SpaceDB {
         &self,
         positions: &[Position],
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<(Position, SpaceFields)>, String> {
+    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
         let index = self.resolution(parameters);
 
         // FIXME: Should I do it here, or add the assumption this is a clean list?
@@ -361,18 +320,15 @@ impl SpaceDB {
         //let view_port = parameters.view_port(space);
 
         // Select the objects
-        let mut results = positions
+        let results = positions
             .iter()
             .flat_map(|position| {
                 self.resolutions[index]
                     .find(position)
                     .into_iter()
-                    .map(move |fields| (position.clone(), fields.clone()))
+                    .map(move |fields| (position.clone(), fields))
             })
             .collect();
-
-        // Decode the Value reference
-        self.decode_value(&mut results);
 
         Ok(results)
     }
@@ -387,7 +343,7 @@ impl SpaceDB {
         &self,
         shape: &Shape,
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<(Position, SpaceFields)>, String> {
+    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
         let index = self.resolution(parameters);
 
         // Convert the view port to the encoded space coordinates
@@ -395,14 +351,7 @@ impl SpaceDB {
         let view_port = parameters.view_port(space);
 
         // Select the objects
-        let mut results = self.resolutions[index]
-            .find_by_shape(&shape, &view_port)?
-            .into_iter()
-            .map(|(position, fields)| (position, fields.clone()))
-            .collect();
-
-        // Decode the Value reference
-        self.decode_value(&mut results);
+        let results = self.resolutions[index].find_by_shape(&shape, &view_port)?;
 
         Ok(results)
     }
