@@ -10,11 +10,11 @@ use super::space::Shape;
 pub struct SpaceSetObject {
     space_id: String,
     position: Position,
-    value: Coordinate, // Efficiently store the offset within the SpaceDB values vector
+    value: usize,
 }
 
 impl SpaceSetObject {
-    pub fn new(reference_space: &str, position: Position, value: Coordinate) -> Self {
+    pub fn new(reference_space: &str, position: Position, value: usize) -> Self {
         SpaceSetObject {
             space_id: reference_space.into(),
             position,
@@ -34,11 +34,11 @@ impl SpaceSetObject {
         self.position = pos;
     }
 
-    pub fn value(&self) -> &Coordinate {
-        &self.value
+    pub fn value(&self) -> usize {
+        self.value
     }
 
-    pub fn set_value(&mut self, value: Coordinate) {
+    pub fn set_value(&mut self, value: usize) {
         self.value = value;
     }
 }
@@ -46,7 +46,7 @@ impl SpaceSetObject {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceFields {
     space_id: String,
-    value: Coordinate,
+    value: usize,
 }
 
 impl SpaceFields {
@@ -57,11 +57,11 @@ impl SpaceFields {
         }
     }
 
-    pub fn value(&self) -> &Coordinate {
-        &self.value
+    pub fn value(&self) -> usize {
+        self.value
     }
 
-    pub fn set_value(&mut self, value: Coordinate) {
+    pub fn set_value(&mut self, value: usize) {
         self.value = value;
     }
 }

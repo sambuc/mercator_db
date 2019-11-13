@@ -198,7 +198,7 @@ pub fn build_index(
                     &point.reference_space,
                     // Use a reference to prevent an allocation
                     (&point.vertices[0]).into(),
-                    value.into(),
+                    value,
                 ))
             }
         }
@@ -209,9 +209,9 @@ pub fn build_index(
     properties.sort_unstable_by(|a, b| a.id().cmp(b.id()));
 
     space_set_objects.iter_mut().for_each(|object| {
-        let id = properties_ref[object.value().u64() as usize];
+        let id = properties_ref[object.value()];
         let value = properties.binary_search_by_key(&id, |p| p.id()).unwrap();
-        object.set_value(value.into());
+        object.set_value(value);
     });
 
     Core::new(

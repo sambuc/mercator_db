@@ -199,7 +199,7 @@ impl Core {
             let mut r = s
                 .get_by_positions(&p, parameters)?
                 .into_iter()
-                .map(|(position, fields)| (position, &self.properties[fields.value().as_usize()]))
+                .map(|(position, fields)| (position, &self.properties[fields.value()]))
                 .collect::<Vec<_>>();
             Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
 
@@ -239,7 +239,7 @@ impl Core {
             let mut r = s
                 .get_by_shape(&current_shape, parameters)?
                 .into_iter()
-                .map(|(position, fields)| (position, &self.properties[fields.value().as_usize()]))
+                .map(|(position, fields)| (position, &self.properties[fields.value()]))
                 .collect::<Vec<_>>();
             Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
 
@@ -374,9 +374,7 @@ impl Core {
                 let mut r = s
                     .get_by_positions(&p, parameters)?
                     .into_iter()
-                    .map(|(position, fields)| {
-                        (position, &self.properties[fields.value().as_usize()])
-                    })
+                    .map(|(position, fields)| (position, &self.properties[fields.value()]))
                     .collect::<Vec<_>>();
 
                 Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
