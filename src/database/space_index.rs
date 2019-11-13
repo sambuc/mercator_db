@@ -22,10 +22,6 @@ impl SpaceSetObject {
         }
     }
 
-    pub fn id(&self) -> &Coordinate {
-        &self.value
-    }
-
     pub fn space_id(&self) -> &String {
         &self.space_id
     }
@@ -54,12 +50,11 @@ pub struct SpaceFields {
 }
 
 impl SpaceFields {
-    pub fn new(space_id: String, value: Coordinate) -> Self {
-        SpaceFields { space_id, value }
-    }
-
-    pub fn space_id(&self) -> &String {
-        &self.space_id
+    pub fn new(space_id: &str, value: usize) -> Self {
+        SpaceFields {
+            space_id: space_id.into(),
+            value: value.into(),
+        }
     }
 
     pub fn value(&self) -> &Coordinate {

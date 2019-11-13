@@ -81,7 +81,7 @@ impl From<Axis> for space::Axis {
 impl From<&space::Axis> for Axis {
     fn from(axis: &space::Axis) -> Self {
         Axis {
-            measurement_unit: axis.measurement_unit(),
+            measurement_unit: axis.measurement_unit().into(),
             graduation: axis.graduation().into(),
             unit_vector: axis.unit_vector().into(),
         }
@@ -118,7 +118,7 @@ impl From<&&database::Properties> for Properties {
     fn from(p: &&database::Properties) -> Self {
         Properties {
             type_name: p.type_name().to_string(),
-            id: p.id().clone(),
+            id: p.id().into(),
         }
     }
 }

@@ -36,7 +36,7 @@ pub enum Properties {
 }
 
 impl Properties {
-    pub fn id(&self) -> &String {
+    pub fn id(&self) -> &str {
         match self {
             Properties::Feature(id) => id,
             Properties::Unknown(id, _) => id,
@@ -268,7 +268,7 @@ impl Core {
         // Do we have this ID registered at all?
         if let Ok(offset) = self
             .properties
-            .binary_search_by_key(&&id, |properties| properties.id())
+            .binary_search_by_key(&id.as_str(), |properties| properties.id())
         {
             // Yes, so now let's find all the position linked to it, per
             // reference space
@@ -321,7 +321,7 @@ impl Core {
 
         if let Ok(offset) = self
             .properties
-            .binary_search_by_key(&&id, |properties| properties.id())
+            .binary_search_by_key(&id.as_str(), |properties| properties.id())
         {
             // Generate the search volume. Iterate over all reference spaces, to
             // retrieve a list of SpaceSetObjects linked to `id`, then iterate

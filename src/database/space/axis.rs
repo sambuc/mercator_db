@@ -139,8 +139,8 @@ impl Axis {
         })
     }
 
-    pub fn measurement_unit(&self) -> String {
-        self.measurement_unit.to_str().into()
+    pub fn measurement_unit(&self) -> &str {
+        self.measurement_unit.to_str()
     }
 
     pub fn unit_vector(&self) -> &Position {

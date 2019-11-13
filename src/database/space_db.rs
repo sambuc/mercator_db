@@ -290,8 +290,7 @@ impl SpaceDB {
         let view_port = parameters.view_port(space);
 
         // Select the objects
-        let objects =
-            self.resolutions[index].find_by_value(&SpaceFields::new(self.name().into(), id.into()));
+        let objects = self.resolutions[index].find_by_value(&SpaceFields::new(self.name(), id));
 
         let results = if let Some(view_port) = view_port {
             objects
