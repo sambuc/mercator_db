@@ -160,22 +160,30 @@ impl Axis {
         let d = position.dot_product(&self.unit_vector);
 
         // Apply Unit scaling
-        let d = d / self.measurement_unit.factor();
+        let mut d = d / self.measurement_unit.factor();
 
         // Ensure it is within allowed range: Upper bound.
         if d > max {
-            return Err(format!(
-                "project_in: position out of bounds: {} >= {}",
-                d, max
-            ));
+            // FIXME: Should we generate an error instead?
+            //return Err(format!(
+            //    "project_in: position out of bounds: {} >= {}",
+            //    d, max
+            //));
+
+            // FIXME: For now, just clip.
+            d = max;
         }
 
         // Ensure it is within allowed range: Lower bound.
         if d < min {
-            return Err(format!(
-                "project_in: position out of bounds: {} < {}",
-                d, min
-            ));
+            // FIXME: Should we generate an error instead?
+            //return Err(format!(
+            //    "project_in: position out of bounds: {} < {}",
+            //    d, min
+            //));
+
+            // FIXME: For now, just clip.
+            d = min;
         }
 
         self.encode(d)
