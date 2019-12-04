@@ -374,7 +374,13 @@ impl Core {
                 let mut r = s
                     .get_by_positions(&p, parameters)?
                     .into_iter()
-                    .map(|(position, fields)| (position, &self.properties[fields.value()]))
+                    .filter_map(|(position, fields)| {
+                        if fields.value() == offset {
+                            None
+                        } else {
+                            Some((position, &self.properties[fields.value()]))
+                        }
+                    })
                     .collect::<Vec<_>>();
 
                 Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
