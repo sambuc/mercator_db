@@ -34,7 +34,7 @@ impl SpaceDB {
         let mut resolutions = vec![];
         let mut indices = vec![];
 
-        if let Some(scales) = scales {
+        if let Some(mut scales) = scales {
             // We optimize scaling, by iteratively building coarser and coarser
             // indexes. Powers holds a list of bit shift to apply based on the
             // previous value.
@@ -42,13 +42,10 @@ impl SpaceDB {
 
             // Limit temporary values lifetimes
             {
-                // Sort by values, smaller to bigger. We clone in order leave as-is scales.
-                let mut exps = scales.clone();
-                // FIXME: This should be done using all the values, somehow
-                exps.sort_unstable_by_key(|v| v[0]);
+                scales.sort_unstable_by_key(|v| v[0]);
 
                 let mut previous = 0u32;
-                for scale in exps {
+                for scale in scales {
                     // FIXME: Remove these assertions ASAP, and support multi-factor scaling
                     assert_eq!(scale.len(), DIMENSIONS);
                     assert!(scale[0] == scale[1] && scale[0] == scale[2]);
@@ -281,7 +278,7 @@ impl SpaceDB {
         &self,
         id: usize,
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<(Position)>, String> {
+    ) -> Result<Vec<Position>, String> {
         // Is that ID referenced in the current space?
         let index = self.resolution(parameters);
 
