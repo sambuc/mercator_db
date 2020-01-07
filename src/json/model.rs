@@ -169,9 +169,8 @@ pub fn build_index(
     let mut properties = vec![];
     let mut space_set_objects = vec![];
 
-    let mut properties_ref = vec![];
-
     {
+        let mut properties_ref = vec![];
         let mut properties_hm = HashMap::new();
 
         for object in objects {
@@ -204,15 +203,14 @@ pub fn build_index(
         }
 
         properties.append(&mut properties_hm.drain().map(|(_, v)| v).collect::<Vec<_>>());
+        properties.sort_unstable_by(|a, b| a.id().cmp(b.id()));
+
+        space_set_objects.iter_mut().for_each(|object| {
+            let id = properties_ref[object.value()];
+            let value = properties.binary_search_by_key(&id, |p| p.id()).unwrap();
+            object.set_value(value);
+        });
     }
-
-    properties.sort_unstable_by(|a, b| a.id().cmp(b.id()));
-
-    space_set_objects.iter_mut().for_each(|object| {
-        let id = properties_ref[object.value()];
-        let value = properties.binary_search_by_key(&id, |p| p.id()).unwrap();
-        object.set_value(value);
-    });
 
     Core::new(
         name,

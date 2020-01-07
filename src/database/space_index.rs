@@ -53,7 +53,7 @@ impl SpaceFields {
     pub fn new(space_id: &str, value: usize) -> Self {
         SpaceFields {
             space_id: space_id.into(),
-            value: value.into(),
+            value,
         }
     }
 

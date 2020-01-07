@@ -86,14 +86,9 @@ pub fn build(
         .map(|s| s.into())
         .collect::<Vec<_>>();
 
-    let core = model::build_index(
-        name,
-        version,
-        &spaces,
-        &load::<Vec<model::SpatialObject>>(&fn_objects),
-        scales,
-        max_elements,
-    );
+    let objects = load::<Vec<model::SpatialObject>>(&fn_objects);
+
+    let core = model::build_index(name, version, &spaces, &objects, scales, max_elements);
 
     store((spaces, core), &fn_index);
 }
