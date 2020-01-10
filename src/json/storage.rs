@@ -60,18 +60,15 @@ where
     bincode::serialize_into(writer, &data).unwrap();
 }
 
-pub fn convert(name: &str) {
-    // Convert Reference Space definitions
-    let fn_in = format!("{}.spaces.json", name);
-    let fn_out = format!("{}.spaces.bin", name);
+pub fn convert<T>(name: &str)
+where
+    T: Serialize + DeserializeOwned,
+{
+    // Convert definitions from json to bincode
+    let fn_in = format!("{}.json", name);
+    let fn_out = format!("{}.bin", name);
 
-    from_json::<Vec<model::Space>>(&fn_in, &fn_out);
-
-    // Convert Spatial Objects
-    let fn_in = format!("{}.objects.json", name);
-    let fn_out = format!("{}.objects.bin", name);
-
-    from_json::<Vec<model::SpatialObject>>(&fn_in, &fn_out);
+    from_json::<T>(&fn_in, &fn_out);
 }
 
 pub fn build(

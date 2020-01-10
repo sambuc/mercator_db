@@ -16,7 +16,8 @@ fn main() {
     // Convert to binary the JSON data:
     if true {
         info_time!("Converting to binary JSON data");
-        storage::convert("10k");
+        storage::convert::<Vec<mercator_db::json::model::Space>>("10k.spaces");
+        storage::convert::<Vec<mercator_db::json::model::SpatialObject>>("10k.objects");
     }
 
     // Build a Database Index:
