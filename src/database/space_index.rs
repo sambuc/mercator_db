@@ -68,7 +68,15 @@ impl SpaceFields {
 
 impl PartialEq for SpaceFields {
     fn eq(&self, other: &Self) -> bool {
-        self.space_id == other.space_id && self.value == other.value
+        // WARNING: We ignore the spaceID, as we know it will always be true
+        // because of our usage of this.
+
+        // This assumption has to be maintained or the test added back.
+        //self.value == other.value
+
+        // First compare on the number field (cheap and fast), then do the String comparison.
+        // Safety first
+        self.value == other.value && self.space_id == other.space_id
     }
 }
 
