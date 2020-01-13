@@ -27,22 +27,132 @@ pub struct Graduation {
     pub steps: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct SpatialObject {
-    pub properties: Properties,
-    pub shapes: Vec<Shape>,
+pub mod v1 {
+    use std::collections::HashMap;
+
+    use crate::database;
+    use database::space;
+
+    use super::Properties;
+
+    #[derive(Clone, Debug, Deserialize, Serialize)]
+    pub struct SpatialObject {
+        pub properties: Properties,
+        pub shapes: Vec<Shape>,
+    }
+
+    #[derive(Clone, Debug, Deserialize, Serialize)]
+    pub struct Shape {
+        #[serde(rename = "type")]
+        pub type_name: String,
+        #[serde(rename = "space")]
+        pub reference_space: String,
+        pub vertices: Vec<Point>,
+    }
+
+    type Point = Vec<f64>;
+
+    pub fn to_spatial_objects(
+        list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
+    ) -> Vec<SpatialObject> {
+        // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
+        let mut hashmap = HashMap::new();
+        for (space, v) in list {
+            for (position, properties) in v {
+                hashmap
+                    .entry(properties)
+                    .or_insert_with(|| vec![])
+                    .push((space, position));
+            }
+        }
+
+        let mut results = vec![];
+        for (properties, v) in hashmap.iter() {
+            // Group by spaces, to collect points shapes together
+            let shapes = v
+                .iter()
+                .map(|(space_id, position)| Shape {
+                    type_name: "Point".to_string(),
+                    reference_space: (*space_id).clone(),
+                    vertices: vec![position.into()],
+                })
+                .collect();
+
+            results.push(SpatialObject {
+                properties: properties.into(),
+                shapes,
+            });
+        }
+
+        results
+    }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Shape {
-    #[serde(rename = "type")]
-    pub type_name: String,
-    #[serde(rename = "space")]
-    pub reference_space: String,
-    pub vertices: Vec<Point>,
-}
+pub mod v2 {
+    use std::collections::HashMap;
 
-type Point = Vec<f64>;
+    use crate::database;
+    use database::space;
+
+    use super::Properties;
+
+    #[derive(Clone, Debug, Deserialize, Serialize)]
+    pub struct SpatialObject {
+        pub properties: Properties,
+        pub volumes: Vec<Volume>,
+    }
+
+    #[derive(Clone, Debug, Deserialize, Serialize)]
+    pub struct Volume {
+        pub space: String,
+        pub shapes: Vec<Shape>,
+    }
+
+    #[derive(Clone, Debug, Deserialize, Serialize)]
+    #[serde(rename_all = "lowercase")]
+    pub enum Shape {
+        Points(Vec<Point>),
+        BoundingBoxes(Vec<(Point, Point)>),
+        HyperSpheres(Vec<(Point, f64)>),
+    }
+
+    type Point = Vec<f64>;
+
+    pub fn to_spatial_objects(
+        list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
+    ) -> Vec<SpatialObject> {
+        // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
+        let mut hashmap = HashMap::new();
+        for (space, v) in list {
+            for (position, properties) in v {
+                hashmap
+                    .entry(properties)
+                    .or_insert_with(HashMap::new)
+                    .entry(space)
+                    .or_insert_with(|| vec![])
+                    .push(position.into());
+            }
+        }
+
+        let mut results = vec![];
+        for (properties, v) in hashmap.iter_mut() {
+            let volumes = v
+                .drain()
+                .map(|(space, positions)| Volume {
+                    space: space.clone(),
+                    shapes: vec![Shape::Points(positions)],
+                })
+                .collect();
+
+            results.push(SpatialObject {
+                properties: properties.into(),
+                volumes,
+            });
+        }
+
+        results
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Properties {
@@ -123,52 +233,16 @@ impl From<&&database::Properties> for Properties {
     }
 }
 
-pub fn to_spatial_objects(
-    list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
-) -> Vec<SpatialObject> {
-    // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
-    let mut hashmap = HashMap::new();
-    for (space, v) in list {
-        for (position, properties) in v {
-            hashmap
-                .entry(properties)
-                .or_insert_with(|| vec![])
-                .push((space, position));
-        }
-    }
-
-    let mut results = vec![];
-    for (properties, v) in hashmap.iter() {
-        // Group by spaces, to collect points shapes together
-        let shapes = v
-            .iter()
-            .map(|(space_id, position)| Shape {
-                type_name: "Point".to_string(),
-                reference_space: (*space_id).clone(),
-                vertices: vec![position.into()],
-            })
-            .collect();
-
-        results.push(SpatialObject {
-            properties: properties.into(),
-            shapes,
-        });
-    }
-
-    results
-}
-
 pub fn build_index(
     name: &str,
     version: &str,
     spaces: &[space::Space],
-    objects: &[SpatialObject],
+    objects: &[v1::SpatialObject],
     scales: Option<Vec<Vec<u32>>>,
     max_elements: Option<usize>,
 ) -> Core {
     let mut properties = vec![];
     let mut space_set_objects = vec![];
-
     {
         let mut properties_ref = vec![];
         let mut properties_hm = HashMap::new();

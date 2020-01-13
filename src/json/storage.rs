@@ -86,7 +86,7 @@ pub fn build(
         .map(|s| s.into())
         .collect::<Vec<_>>();
 
-    let objects = load::<Vec<model::SpatialObject>>(&fn_objects);
+    let objects = load::<Vec<model::v1::SpatialObject>>(&fn_objects);
 
     let core = model::build_index(name, version, &spaces, &objects, scales, max_elements);
 
