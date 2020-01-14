@@ -11,6 +11,6 @@ extern crate arrayref;
 extern crate serde_derive;
 
 mod database;
-pub mod json;
+pub mod storage;
 
 pub use database::*;

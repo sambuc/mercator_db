@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate measure_time;
 
-use mercator_db::json::storage;
 use mercator_db::space::Shape;
+use mercator_db::storage;
 use mercator_db::CoreQueryParameters;
 use mercator_db::DataBase;
 
@@ -16,14 +16,14 @@ fn main() {
     // Convert to binary the JSON data:
     if true {
         info_time!("Converting to binary JSON data");
-        storage::convert::<Vec<mercator_db::json::model::Space>>("10k.spaces");
-        storage::convert::<Vec<mercator_db::json::model::SpatialObject>>("10k.objects");
+        storage::json::from::<Vec<mercator_db::storage::model::Space>>("10k.spaces");
+        storage::json::from::<Vec<mercator_db::storage::model::v1::SpatialObject>>("10k.objects");
     }
 
     // Build a Database Index:
     if true {
         info_time!("Building database index");
-        storage::build("10k", "v0.1", None, None);
+        storage::bincode::build("10k", "v0.1", None, None);
     }
 
     // Load a Database:
@@ -69,7 +69,7 @@ fn main() {
         let r = core.get_by_label(&c, id).unwrap();
         println!("get_by_label {}: {}", id, r.len());
         if !r.is_empty() {
-            println!("{}: {:?}\n", id, r[0].1[0]);
+            println!("{}: {:?}\n", id, r); // no overlaping point, so no results
         }
 
         let lower = space.encode(&[0.2, 0.2, 0.2]).unwrap();

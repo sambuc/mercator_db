@@ -233,11 +233,13 @@ impl From<&&database::Properties> for Properties {
     }
 }
 
+pub use v1::SpatialObject;
+
 pub fn build_index(
     name: &str,
     version: &str,
     spaces: &[space::Space],
-    objects: &[v1::SpatialObject],
+    objects: &[SpatialObject],
     scales: Option<Vec<Vec<u32>>>,
     max_elements: Option<usize>,
 ) -> Core {
