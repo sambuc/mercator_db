@@ -1,3 +1,6 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use super::Coordinate;
 use super::Position;
 use super::Space;

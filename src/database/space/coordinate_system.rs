@@ -1,3 +1,6 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use super::axis::Axis;
 use super::coordinate::Coordinate;
 use super::position::Position;

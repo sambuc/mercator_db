@@ -1,6 +1,8 @@
 use std::cmp::Ord;
 
 use ironsea_index::IndexedDestructured;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::space::Coordinate;
 use super::space::Position;

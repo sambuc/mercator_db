@@ -8,6 +8,7 @@ use std::fs::File;
 
 use ironsea_index::Indexed;
 use memmap::Mmap;
+use serde::Serialize;
 
 pub use db_core::Core;
 pub use db_core::CoreQueryParameters;

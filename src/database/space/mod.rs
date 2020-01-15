@@ -7,6 +7,9 @@ mod shape;
 #[cfg(test)]
 mod tests;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 pub use axis::Axis;
 pub use axis::Graduation;
 pub use axis::NumberSet;

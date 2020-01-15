@@ -13,6 +13,9 @@ use std::ops::MulAssign;
 use std::ops::Sub;
 use std::ops::SubAssign;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 use super::coordinate::Coordinate;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, Serialize)]

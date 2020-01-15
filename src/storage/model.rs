@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::database;
 use database::space;
 use database::Core;
@@ -29,6 +32,9 @@ pub struct Graduation {
 
 pub mod v1 {
     use std::collections::HashMap;
+
+    use serde::Deserialize;
+    use serde::Serialize;
 
     use crate::database;
     use database::space;
@@ -90,6 +96,9 @@ pub mod v1 {
 
 pub mod v2 {
     use std::collections::HashMap;
+
+    use serde::Deserialize;
+    use serde::Serialize;
 
     use crate::database;
     use database::space;

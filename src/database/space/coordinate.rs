@@ -8,6 +8,9 @@ use std::ops::Add;
 use std::ops::Mul;
 use std::ops::Sub;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Coordinate {
     CoordinateU8(u8),
