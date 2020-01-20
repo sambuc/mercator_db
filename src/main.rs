@@ -16,14 +16,15 @@ fn main() {
     // Convert to binary the JSON data:
     if true {
         info_time!("Converting to binary JSON data");
-        storage::json::from::<Vec<mercator_db::storage::model::Space>>("10k.spaces");
-        storage::json::from::<Vec<mercator_db::storage::model::v1::SpatialObject>>("10k.objects");
+        storage::json::from::<Vec<mercator_db::storage::model::Space>>("10k.spaces").unwrap();
+        storage::json::from::<Vec<mercator_db::storage::model::v1::SpatialObject>>("10k.objects")
+            .unwrap();
     }
 
     // Build a Database Index:
     if true {
         info_time!("Building database index");
-        storage::bincode::build("10k", "v0.1", None, None);
+        storage::bincode::build("10k", "v0.1", None, None).unwrap();
     }
 
     // Load a Database:

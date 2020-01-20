@@ -34,7 +34,7 @@ fn convert(string: &str) -> Result<Vec<SpatialObject>, Error> {
             "SCALE" => (),
             _ if values[0].starts_with("#A") => {
                 // Update the oid value.
-                oid = Some(format!("{}", values[0].trim_start_matches("#")));
+                oid = Some(values[0].trim_start_matches('#').to_string());
                 trace!("FOUND OID {:?}", oid);
             }
             _ if line.contains("WHS") => {

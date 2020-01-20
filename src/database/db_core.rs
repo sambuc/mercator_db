@@ -85,8 +85,7 @@ impl Core {
         space_objects: Vec<SpaceSetObject>,
         scales: Option<Vec<Vec<u32>>>,
         max_elements: Option<usize>,
-    ) -> Self
-    //Result<Self, String>
+    ) -> Result<Self, String>
     where
         S: Into<String>,
     {
@@ -112,18 +111,18 @@ impl Core {
 
             for object in filtered.iter_mut() {
                 let position: Vec<f64> = object.position().into();
-                object.set_position(space.encode(&position).unwrap());
+                object.set_position(space.encode(&position)?);
             }
 
             space_dbs.push(SpaceDB::new(&space, filtered, scales.clone(), max_elements))
         }
 
-        Core {
+        Ok(Core {
             title: title.into(),
             version: version.into(),
             properties,
             space_db: space_dbs,
-        }
+        })
     }
 
     pub fn name(&self) -> &String {

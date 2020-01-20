@@ -251,7 +251,7 @@ pub fn build_index(
     objects: &[SpatialObject],
     scales: Option<Vec<Vec<u32>>>,
     max_elements: Option<usize>,
-) -> Core {
+) -> Result<Core, String> {
     let mut properties = vec![];
     let mut space_set_objects = vec![];
     {
