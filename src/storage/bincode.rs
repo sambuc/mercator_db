@@ -61,7 +61,15 @@ pub fn build(
 
     let objects = load::<Vec<model::SpatialObject>>(&fn_objects)?;
 
-    let core = model::build_index(name, version, &spaces, &objects, scales, max_elements);
+    let core = match model::build_index(name, version, &spaces, &objects, scales, max_elements) {
+        Ok(core) => core,
+        Err(e) => {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Failure to build index: {:?}", e),
+            ))
+        }
+    };
 
     store((spaces, core), &fn_index)
 }

@@ -4,12 +4,11 @@ mod space_db;
 mod space_index;
 
 use std::collections::HashMap;
-use std::fs::File;
 
 use ironsea_index::Indexed;
-use memmap::Mmap;
 use serde::Serialize;
 
+use super::storage;
 pub use db_core::Core;
 pub use db_core::CoreQueryParameters;
 pub use db_core::Properties;
@@ -73,22 +72,8 @@ impl DataBase {
         Ok(DataBase::new(spaces, cores))
     }
 
-    fn mmap_file(filename: &str) -> Result<Mmap, String> {
-        let file_in = match File::open(filename) {
-            Err(e) => return Err(format!("{:?}", e)),
-            Ok(file) => file,
-        };
-
-        match unsafe { Mmap::map(&file_in) } {
-            Err(e) => Err(format!("{:?}", e)),
-            Ok(mmap) => Ok(mmap),
-        }
-    }
-
     fn load_core(name: &str) -> Result<(Vec<Space>, Core), String> {
-        let mmap = DataBase::mmap_file(&name)?;
-
-        match bincode::deserialize(&mmap[..]) {
+        match storage::bincode::load(name) {
             Err(e) => Err(format!("Index deserialization error: {:?}", e)),
             Ok(index) => Ok(index),
         }
