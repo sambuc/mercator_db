@@ -22,35 +22,9 @@ This enables the index implementations to be agnostic from the underlying data s
 
  * Rust: https://www.rust-lang.org
 
-## Quick start
-
-## Building from sources
-
-To build this project, you will need to run the following:
-
-```sh
-cargo build --release
-```
-
-### Installation
-
-To install the software on the system you can use:
-
-```sh
-cargo install --release
-```
-
-### Usage
-
-The binary `db-test` provided is used only as an integration test at this point. It will convert a json input to a binary representation, before building an index over it. Once this is achieved, it will run a couple of hard-coded queries over the index.
-
-```sh
-cargo run --release
-```
-
 ## Documentation
 
-For more information, please refer to the [documentation](https://epfl-dias.github.io/PROJECT_NAME/).
+For more information, please refer to the [documentation](https://epfl-dias.github.io/mercator_db/).
 
 If you want to build the documentation and access it locally, you can use:
 

@@ -139,7 +139,7 @@ impl SpaceIndex {
         self.index.find_by_value(id)
     }
 
-    /// Inputs and Results are also in encoded space coordinates.
+    // Inputs and Results are also in encoded space coordinates.
     pub fn find_by_shape(
         &self,
         shape: &Shape,

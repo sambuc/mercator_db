@@ -6,14 +6,39 @@ use super::coordinate::Coordinate;
 use super::position::Position;
 use super::MAX_K;
 
+/// Kinds of space coordinate systems, or bases
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum CoordinateSystem {
-    Universe { origin: Position },
-    // Coordinates in Universe, expressed in f64, and in the Universe number of dimensions.
-    AffineSystem { origin: Position, axes: Vec<Axis> },
+    /// Absolute base, which allows to generate transformation between
+    /// spaces by anchoring them relative to each other.
+    Universe {
+        /// A position which contains zeroes for all its coordinates,
+        /// but has a coordinate per dimensions of the highest
+        /// dimensions space referenced.
+        origin: Position,
+    },
+    /// Base which needs only an affine transformation to map into the Universe.
+    AffineSystem {
+        /// Coordinates in Universe, expressed in f64, or decoded, and
+        /// in the Universe number of dimensions.
+        origin: Position,
+
+        /// The definition of the coordinate system, through its axes.
+        axes: Vec<Axis>,
+    },
 }
 
 impl CoordinateSystem {
+    /// Instantiate a new coordinate system.
+    ///
+    /// # Parameters
+    ///
+    ///  * `origin`:
+    ///      The translation vector in Universe coordinates of this
+    ///      base.
+    ///
+    ///  * `axes`:
+    ///      The list of axes defining the coordinate system.
     pub fn new(origin: Vec<f64>, axes: Vec<Axis>) -> Self {
         CoordinateSystem::AffineSystem {
             origin: origin.into(),
@@ -21,6 +46,7 @@ impl CoordinateSystem {
         }
     }
 
+    /// The translation vector, in Universe coordinates.
     pub fn origin(&self) -> &Position {
         match self {
             CoordinateSystem::Universe { origin, .. } => origin,
@@ -28,6 +54,7 @@ impl CoordinateSystem {
         }
     }
 
+    /// The axes definition of this base.
     pub fn axes(&self) -> &Vec<Axis> {
         match self {
             CoordinateSystem::Universe { .. } => {
@@ -38,6 +65,7 @@ impl CoordinateSystem {
         }
     }
 
+    /// The number of dimensions of positions within this base.
     pub fn dimensions(&self) -> usize {
         match self {
             CoordinateSystem::Universe { .. } => MAX_K,
@@ -45,6 +73,10 @@ impl CoordinateSystem {
         }
     }
 
+    /// The smallest bounding box containing the whole base, expressed
+    /// in decoded Universe coordinates.
+    ///
+    // FIXME: Add the translation vector!
     pub fn bounding_box(&self) -> (Position, Position) {
         let mut low = Vec::with_capacity(self.dimensions());
         let mut high = Vec::with_capacity(self.dimensions());
@@ -67,6 +99,9 @@ impl CoordinateSystem {
         (low.into(), high.into())
     }
 
+    /// The volume of this space.
+    ///
+    // FIXME: This assumes orthogonal spaces!
     pub fn volume(&self) -> f64 {
         let (low, high) = self.bounding_box();
         let difference: Vec<_> = (high - low).into();
@@ -80,8 +115,19 @@ impl CoordinateSystem {
         volume
     }
 
-    // The position is expressed in coordinates in the universe,
-    // return a position in the current coordinate system.
+    /// Rebase a position in this coordinate space.
+    ///
+    /// Each coordinate is encoded individually, and a new `Position`
+    /// is generated.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      expressed in decoded Universe coordinates.
+    ///
+    /// # Return value
+    ///
+    /// The encoded coordinates within this coordinate system.
     pub fn rebase(&self, position: &Position) -> Result<Position, String> {
         match self {
             CoordinateSystem::Universe { origin } => {
@@ -106,8 +152,16 @@ impl CoordinateSystem {
         }
     }
 
-    // The position is expressed in coordinates in the current coordinate system,
-    // return a position in Universe coordinates.
+    /// Express the position in the Universe coordinate system.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      expressed as an encoded coordinates in the coordinate system.
+    ///
+    /// # Return value
+    ///
+    /// The position expressed in Universe decoded coordinates.
     pub fn absolute_position(&self, position: &Position) -> Result<Position, String> {
         match self {
             CoordinateSystem::Universe { origin } => {
@@ -132,8 +186,19 @@ impl CoordinateSystem {
         }
     }
 
-    // The position is expressed in the current system
-    // Encode each coordinate separately and return an encoded Position
+    /// Encode a position expressed in the current coordinate system.
+    ///
+    /// Each coordinate is encoded individually, and a new `Position`
+    /// is generated.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      expressed in the current coordinate system.
+    ///
+    /// # Return value
+    ///
+    /// The encoded coordinates within this coordinate system.
     pub fn encode(&self, position: &[f64]) -> Result<Position, String> {
         let mut encoded = vec![];
 
@@ -155,8 +220,20 @@ impl CoordinateSystem {
         Ok(encoded.into())
     }
 
-    // The position is expressed in the current system as an encoded value,
-    // return a position in the current system as f64 values.
+    /// Decode a position expressed in the current coordinate system as
+    /// an encoded value.
+    ///
+    /// Each coordinate is decoded individually.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      expressed in the current coordinate system, as encoded
+    ///      values.
+    ///
+    /// # Return value
+    ///
+    /// The decoded coordinates within this coordinate system.
     pub fn decode(&self, position: &Position) -> Result<Vec<f64>, String> {
         let mut decoded = vec![];
 

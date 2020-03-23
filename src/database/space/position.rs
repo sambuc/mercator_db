@@ -18,24 +18,31 @@ use serde::Serialize;
 
 use super::coordinate::Coordinate;
 
+/// Store a position as efficiently as possible in terms of space.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, Serialize)]
 pub enum Position {
+    /// 1 dimension positions.
     Position1(Coordinate),
+    /// 2 dimensions positions.
     Position2([Coordinate; 2]),
+    /// 3 dimensions positions.
     Position3([Coordinate; 3]),
+    /// 4 dimensions positions.
     Position4([Coordinate; 4]),
+    /// 5 dimensions positions.
     Position5([Coordinate; 5]),
+    /// 6 dimensions positions.
     Position6([Coordinate; 6]),
+    /// 7 dimensions positions.
     Position7([Coordinate; 7]),
+    /// 8 dimensions positions.
     Position8([Coordinate; 8]),
+    /// N dimensions positions.
     PositionN(Vec<Coordinate>),
 }
 
 impl Position {
-    pub fn new(coordinates: Vec<Coordinate>) -> Self {
-        coordinates.into()
-    }
-
+    /// Returns the number of dimensions or size of the vector.
     pub fn dimensions(&self) -> usize {
         match self {
             Position::Position1(_) => 1,
@@ -50,7 +57,7 @@ impl Position {
         }
     }
 
-    // Returns ||self||
+    /// Compute `||self||`.
     pub fn norm(&self) -> f64 {
         if let Position::Position1(coordinates) = self {
             // the square root of a single number to the square is its positive value, so ensure it is.
@@ -68,32 +75,48 @@ impl Position {
         }
     }
 
-    // Unit / Normalized vector from self.
+    /// Compute the unit vector pointing in the same direction as `self`.
     pub fn unit(&self) -> Self {
         self * (1f64 / self.norm())
     }
 
-    // This multiplies self^T with other, producing a scalar value
-    pub fn dot_product(&self, other: &Self) -> f64 {
-        assert_eq!(self.dimensions(), other.dimensions());
+    /// Multiplies `self` with `rhs`, producing a scalar value.
+    ///
+    /// `self • rhs = product`
+    ///
+    /// **Note:** The two vector sizes must be equal, a.k.a the two
+    ///           vectors must have the same number of dimensions.
+    ///
+    ///  # Parameters
+    ///
+    ///   `rhs`:
+    ///     The right-hand side vector.
+    pub fn dot_product(&self, rhs: &Self) -> f64 {
+        assert_eq!(self.dimensions(), rhs.dimensions());
 
         let mut product = 0f64;
 
         for k in 0..self.dimensions() {
-            product += (self[k] * other[k]).f64();
+            product += (self[k] * rhs[k]).f64();
         }
 
         product
     }
 
+    /// Remove bits of precision.
+    ///
+    /// # Parameters
+    ///
+    ///  * `scale`:
+    ///      Number of bits of precision to remove from each coordinates.
     pub fn reduce_precision(&self, scale: u32) -> Self {
         let mut position = Vec::with_capacity(self.dimensions());
 
         for i in 0..self.dimensions() {
-            position.push((self[i].u64() >> scale).into())
+            position.push(self[i].u64() >> scale)
         }
 
-        Position::new(position)
+        position.into()
     }
 }
 
@@ -153,7 +176,10 @@ impl Index<usize> for Position {
 
     fn index(&self, k: usize) -> &Self::Output {
         match self {
-            Position::Position1(coordinate) => coordinate,
+            Position::Position1(coordinate) => {
+                assert_eq!(k, 0);
+                coordinate
+            }
             Position::Position2(coordinates) => &coordinates[k],
             Position::Position3(coordinates) => &coordinates[k],
             Position::Position4(coordinates) => &coordinates[k],
@@ -169,7 +195,10 @@ impl Index<usize> for Position {
 impl IndexMut<usize> for Position {
     fn index_mut(&mut self, k: usize) -> &mut Self::Output {
         match self {
-            Position::Position1(coordinate) => coordinate,
+            Position::Position1(coordinate) => {
+                assert_eq!(k, 0);
+                coordinate
+            }
             Position::Position2(coordinates) => &mut coordinates[k],
             Position::Position3(coordinates) => &mut coordinates[k],
             Position::Position4(coordinates) => &mut coordinates[k],

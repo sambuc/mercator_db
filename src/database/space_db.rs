@@ -193,11 +193,13 @@ impl SpaceDB {
         &self.reference_space
     }
 
+    /* Comment this for now, as this is not yet used.
     // The smallest volume threshold, which is the highest resolution,  will
     // be at position 0
     fn highest_resolution(&self) -> usize {
         0
     }
+    */
 
     // The highest volume threshold, which is the lowest resolution,  will
     // be at position len - 1

@@ -5,16 +5,33 @@ use super::Coordinate;
 use super::Position;
 use super::Space;
 
+/// Known shapes descriptions
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Shape {
+    /// A singular point in space.
     Point(Position),
     //HyperRectangle([Position; MAX_K]),
+    /// A sphere in space.
     HyperSphere(Position, Coordinate),
+
+    /// Hyperrectangle whose faces have one of the axis as a normal.
     BoundingBox(Position, Position),
     //Nifti(nifti_data??),
 }
 
 impl Shape {
+    /// Convert the encoded coordinates between two reference spaces.
+    ///
+    /// The resulting shape is expressed in encoded coordinates in the
+    /// target space.
+    ///
+    /// # Parameters
+    ///
+    ///  * `from`:
+    ///     Current reference space of the shape.
+    ///
+    ///  * `to`:
+    ///     Target reference space.
     pub fn rebase(&self, from: &Space, to: &Space) -> Result<Shape, String> {
         match self {
             Shape::Point(position) => Ok(Shape::Point(Space::change_base(position, from, to)?)),
@@ -36,6 +53,20 @@ impl Shape {
         }
     }
 
+    /// Decode the coordinates of the shape.
+    ///
+    /// The encoded coordinates of the shapes are expressed in the
+    /// provided space.
+    ///
+    /// # Parameters
+    ///
+    ///  * `space`:
+    ///      Reference space of the shape. It is used to decode the
+    ///      encoded coordinates into positions.
+    ///
+    /// # Return value
+    ///
+    /// The shape with decoded positions within the space.
     pub fn decode(&self, space: &Space) -> Result<Shape, String> {
         let s = match self {
             Shape::Point(position) => Shape::Point(space.decode(position)?.into()),
@@ -51,6 +82,19 @@ impl Shape {
         Ok(s)
     }
 
+    /// Encode the positions of the shape.
+    ///
+    /// The positions of the shapes are expressed in the provided space.
+    ///
+    /// # Parameters
+    ///
+    ///  * `space`:
+    ///      Reference space of the shape. It is used to encode the
+    ///      positions into encoded coordinates.
+    ///
+    /// # Return value
+    ///
+    /// The shape with encoded coordinates within the space.
     pub fn encode(&self, space: &Space) -> Result<Shape, String> {
         let s = match self {
             Shape::Point(position) => {
@@ -72,6 +116,10 @@ impl Shape {
         Ok(s)
     }
 
+    /// Compute the minimum bounding box of the shape.
+    ///
+    /// This is an hyperrectangle whose faces are perpendicular to an
+    /// axis of the space, and which minimally covers the shape.
     pub fn get_mbb(&self) -> (Position, Position) {
         match self {
             Shape::Point(position) => (position.clone(), position.clone()),
@@ -88,6 +136,12 @@ impl Shape {
         }
     }
 
+    /// Check if the shape overlaps with the given position.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      The position to check.
     pub fn contains(&self, position: &Position) -> bool {
         match self {
             Shape::Point(reference) => reference == position,
@@ -178,9 +232,8 @@ impl Shape {
         results
     }
 
-    // Transform a Shape into a list of Position which approximate the shape.
-    // Note:
-    //  * All output positions are expressed within the space.
+    /// Transform a Shape into a list of `Position` which approximate
+    /// the shape.
     // TODO: Return an iterator instead, for performance!
     pub fn rasterise(&self) -> Result<Vec<Position>, String> {
         match self {
@@ -200,10 +253,14 @@ impl Shape {
         }
     }
 
-    // Transform a Shape into a list of Position which approximate the shape.
-    // Note:
-    //  * All input positions are expressed within the space.
-    //  * All output positions are expressed in absolute positions in Universe
+    /// Transform a Shape into a list of `Position` which approximate
+    /// the shape, in absolute, or Universe positions.
+    ///
+    /// # Parameters
+    ///
+    ///  * `space`:
+    ///      Reference space in which the shape is expressed.
+    ///
     // TODO: Return an iterator instead, for performance!
     pub fn rasterise_from(&self, space: &Space) -> Result<Vec<Position>, String> {
         Ok(self
@@ -216,6 +273,7 @@ impl Shape {
             .collect())
     }
 
+    /// Compute the volume.
     pub fn volume(&self) -> f64 {
         match self {
             Shape::Point(_) => std::f64::EPSILON, // Smallest non-zero volume possible

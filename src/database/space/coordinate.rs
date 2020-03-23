@@ -11,18 +11,36 @@ use std::ops::Sub;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// Store efficiently a coordinate.
+///
+/// While you can manually create a `Coordinate` value directly, using
+/// the `From` trait will automatically choose the most efficient enum
+/// member to store the value. This it the recommended way of using this
+/// struct.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Coordinate {
+    /// Encoded coordinates whose value is in the range `[0; 2^8[`.
     CoordinateU8(u8),
+    /// Encoded coordinates whose value is in the range `[0; 2^16[`,
+    /// but should be used only for the range `[2^8; 2^16[`.
     CoordinateU16(u16),
+    /// Encoded coordinates whose value is in the range `[0; 2^32[`,
+    /// but should be used only for the range `[2^16; 2^32[`.
     CoordinateU32(u32),
+    /// Encoded coordinates whose value is in the range `[0; 2^64[`,
+    /// but should be used only for the range `[2^32; 2^64[`.
     CoordinateU64(u64),
     // We currently assume that 2^64 is enough to store encoded position values per axis.
     //CoordinateU128(u128),
+    /// Decoded coordinate value expressed as a floating point value over 64 bits.
+    /// For details on the precision, please see the
+    /// [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754) reference.
     CoordinateF64(f64),
 }
 
 impl Coordinate {
+    /// Return the value as a `f64`, this may introduce a loss of
+    /// precision for encoded values.
     pub fn f64(&self) -> f64 {
         match *self {
             Coordinate::CoordinateU8(v) => f64::from(v),
@@ -33,6 +51,7 @@ impl Coordinate {
         }
     }
 
+    /// Return the value as `u64`, this is valid only on encoded values.
     pub fn u64(&self) -> u64 {
         match *self {
             Coordinate::CoordinateU8(v) => u64::from(v),
@@ -43,6 +62,8 @@ impl Coordinate {
         }
     }
 
+    /// Return the value as `usize`, this is valid only on encoded
+    /// values.
     pub fn as_usize(&self) -> usize {
         self.u64() as usize
     }

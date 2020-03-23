@@ -4,11 +4,16 @@ use serde::Serialize;
 use super::coordinate::Coordinate;
 use super::position::Position;
 
+/// Mathematical set numbers.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum NumberSet {
+    /// [Natural numbers](https://en.wikipedia.org/wiki/Natural_number), here including **0**.
     N,
+    /// [Integers](https://en.wikipedia.org/wiki/Integer).
     Z,
+    /// [Rational](https://en.wikipedia.org/wiki/Rational_number) numbers.
     Q,
+    /// [Real](https://en.wikipedia.org/wiki/Real_number) numbers.
     R,
 }
 
@@ -37,12 +42,19 @@ impl From<&NumberSet> for String {
     }
 }
 
+/// Definition of a fixed-precision, finite length axis.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Graduation {
+    /// Set of numbers allowed on the axis.
     pub set: NumberSet,
+    /// Minimum value *inclusive*.
     pub minimum: f64,
+    /// Maximum value *inclusive*.
     pub maximum: f64,
+    /// Number of *ticks* or discrete values between `minimum` and
+    /// `maximum`.
     pub steps: u64,
+    /// Length between two distinct *ticks* on the axis.
     pub epsilon: f64,
 }
 
@@ -60,7 +72,7 @@ impl Graduation {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[allow(non_camel_case_types)]
-pub enum UnitSI {
+enum UnitSI {
     // Partial list, which is tailored to the use case needs. Prevents possible
     // confusions between Mm and mm, for example.
     m,
@@ -113,16 +125,45 @@ impl From<&str> for UnitSI {
     }
 }
 
+/// Definition of an axis of a base.
+///
+/// This links together valid values on this axis, as well as the
+/// direction in the Universe of the axis and the base length unit of
+/// the `1.0` value.
 // TODO: In the future this might become an Enum with AffineAxis, ArbitraryAxis, etc...
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Axis {
     measurement_unit: UnitSI,
     graduation: Graduation,
-    // Coordinates in Universe, expressed in f64, and in the Universe number of dimensions.
-    pub unit_vector: Position,
+    // Coordinates in Universe, expressed in f64, and in the Universe
+    // number of dimensions.
+    unit_vector: Position,
 }
 
 impl Axis {
+    /// Instanciate a new Axis definition.
+    ///
+    /// # Parameters
+    ///
+    ///  * `unit`:
+    ///     SI Unit to use on this axis for the `1.0` value.
+    ///     See [measurement_unit](#method.measurement_unit).
+    ///
+    ///  * `unit_vector`:
+    ///     A vector providing the direction in the Universe space of
+    ///     this axis.
+    ///
+    ///  * `set`:
+    ///     The valid numbers on this axis.
+    ///
+    ///  * `minimum`:
+    ///     The minimum value described by this axis *included*.
+    ///
+    ///  * `maximum`:
+    ///     The maximum value described by this axis *included*.
+    ///
+    ///  * `steps`:
+    ///     The number of steps, or discrete *ticks* on this axis.
     pub fn new(
         unit: &str,
         unit_vector: Vec<f64>,
@@ -142,20 +183,48 @@ impl Axis {
         })
     }
 
+    /// The unit, as in [SI unit] used on this axis, more specifically,
+    /// a [metric prefix] of the **meter**.
+    ///
+    /// Currently the following values are supported:
+    ///  * `m`
+    ///  * `dm`
+    ///  * `cm`
+    ///  * `mm`
+    ///  * `um`
+    ///  * `nm`
+    ///  * `pm`
+    ///
+    /// [SI unit]: https://en.wikipedia.org/wiki/International_System_of_Units
+    /// [metric prefix]: https://en.wikipedia.org/wiki/Metric_prefix
     pub fn measurement_unit(&self) -> &str {
         self.measurement_unit.to_str()
     }
 
+    /// The unit vector of the axis.
+    ///
+    /// This vector is expressed in the Universe coordinate system.
     pub fn unit_vector(&self) -> &Position {
         &self.unit_vector
     }
 
+    /// The valid number range and properties on this axis.
     pub fn graduation(&self) -> &Graduation {
         &self.graduation
     }
 
-    // Project a point expressed in Universe coordinates from the origin of this
-    // axis on this axis.
+    /// Project a position on this axis.
+    ///
+    /// The resulting coordinate is expressed as an encoded coordinate
+    /// on this axis.
+    ///
+    /// # Parameters
+    ///
+    ///  * `position`:
+    ///      The position to project on this axis. It must be defined in
+    ///      Universe coordinates, but with any translations already
+    ///      applied so that the origin of the vector is the origin of
+    ///      this axis.
     pub fn project_in(&self, position: &Position) -> Result<Coordinate, String> {
         let max = self.graduation.maximum;
         let min = self.graduation.minimum;
@@ -192,7 +261,19 @@ impl Axis {
         self.encode(d)
     }
 
-    // Convert a value on this axis to Universe coordinates, based from the origin of this axis.
+    /// Convert an encoded coordinate expressed on this axis into a
+    /// position.
+    ///
+    /// The resulting position is expressed in the Universe reference
+    /// space, but from the origin of this axis. Any required
+    /// translation must be applied to this resulting position to obtain
+    /// an absolute value in the Universe space.
+    ///
+    /// # Parameters
+    ///
+    ///  * `coordinate`:
+    ///      The coordinate to project out of this axis. It must be
+    ///      defined as an encoded coordinate on this axis.
     pub fn project_out(&self, coordinate: &Coordinate) -> Result<Position, String> {
         let d = self.decode(coordinate)?;
 
@@ -202,7 +283,13 @@ impl Axis {
         Ok(&self.unit_vector * d)
     }
 
-    // Value is expressed on the current Axis, not in absolute coordinates!
+    /// Encode a coordinate expressed on this axis.
+    ///
+    /// # Parameters
+    ///
+    ///  * `val`:
+    ///      The coordinate to encode. It must be defined as a
+    ///      coordinate on this axis.
     pub fn encode(&self, val: f64) -> Result<Coordinate, String> {
         let max = self.graduation.maximum;
         let min = self.graduation.minimum;
@@ -229,7 +316,13 @@ impl Axis {
         Ok(v.into())
     }
 
-    // Value is expressed on the current Axis, not in absolute coordinates!
+    /// Decode a coordinate expressed on this axis.
+    ///
+    /// # Parameters
+    ///
+    ///  * `val`:
+    ///      The coordinate to decode. It must be defined as an encoded
+    ///      coordinate on this axis.
     pub fn decode(&self, val: &Coordinate) -> Result<f64, String> {
         let max = self.graduation.maximum;
         let min = self.graduation.minimum;

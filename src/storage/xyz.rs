@@ -1,3 +1,113 @@
+//! # XYZ file format
+//!
+//! This module support reading files read by [MeshView] tool used at
+//! the [University of Oslo].
+//!
+//! # File structure
+//!
+//! Each files begins with:
+//!
+//! ```txt
+//! RGBA [Red] [Green] [Blue] [Alpha] # RGBA
+//! [X],[Y],[Z] # WHS Origin
+//! [X],[Y],[Z] # Bregma
+//!
+//! SCALE [F]
+//! ```
+//!
+//!  * `RGBA [Red] [Green] [Blue] [Alpha]`: defines the color to use for
+//!    the following points
+//!  * `[X],[Y],[Z] # WHS Origin`: defines where the Waxholm Origin is
+//!    in Voxel coordinates.
+//!  * `[X],[Y],[Z] # Bregma`: same as above, for another reference
+//!    space.
+//!  * `SCALE [F]`: **TBC** Size of the voxels.
+//!
+//! The rest of the file contains (one per line):
+//!  * coordinate triplets (x, y and z), each  representing one point
+//!    coordinate.
+//!  * `RGB [Red] [Green] [Blue]`: Which applies from that line
+//!    until further notice.
+//!  * A comment Line, starting with `#`
+//!
+//! ## File Coordinate system
+//!
+//! Coordinates in MeshView follow RAS (Right-Anterior-Superior)
+//! orientation and are expressed in voxels:
+//!  * First axis `x` starts from the left side of the volume, and
+//!    points towards the right.
+//!  * Second axis `y` starts from the backmost position in the volume,
+//!    and points towards the front.
+//!  * Third axis `z` starts from the bottom of the volume and points
+//!    towards the top.
+//!
+//! # Waxholm Space
+//!
+//! ## Conversion to Waxholm Space
+//!
+//! The [Waxholm Space Atlas] of the Sprague Dawley Rat Brain (WHS) uses
+//! the same axis order and orientation as the MeshView tool, there is
+//! only a translation of the origin, and scaling have to be applied.
+//!
+//! # Example
+//!
+//! ```txt
+//! RGBA 1 0 0 1 # RGBA
+//! 244,623,248 # WHS Origin
+//! 246,653,440 # Bregma
+//!
+//! #Aar27s49 26 0
+//! RGB 0.12941176470588237 0.403921568627451 0.1607843137254902
+//! 221.40199877 413.34541500312037 172.79973508489095
+//! 220.5800097805 412.82939421970866 173.56428074436994
+//!
+//! #Aar27s48 49 0
+//! RGB 0.12941176470588237 0.403921568627451 0.1607843137254902
+//! 237.35325687425 412.5720395183866 176.6713556605702
+//! ```
+//!
+//! ## Conversion to Waxholm
+//!
+//! Assuming the following extents of "WHS Rat 39 μm" in voxels:
+//!
+//!  * Leftmost sagittal plane: `x = 0`
+//!  * Backmost coronal plane: `y = 0`
+//!  * Bottommost horizontal plane: `z = 0`
+//!  * Rightmost sagittal plane: `x = 511`
+//!  * Frontmost coronal plane: `y = 1023`
+//!  * Topmost horizontal plane: `z = 511`
+//!
+//! **NOTE**: Directions are deliberately matching the default
+//!           orientation of ​NIfTI​ data.
+//!
+//! 1. As per the `WHS Origin` directive, it is at 244, 623, 248 voxel
+//!    coordinates, which means each coordinate must be subtracted with
+//!    the corresponding value, then
+//! 2. the coordinates must be converted to millimeters, a.k.a
+//!    multiplied by the atlas resolution. For the atlas of this example
+//!    it is 0.0390625 [mm], isotropic.
+//!
+//! This gives us the following conversion formula:
+//!
+//! ```txt
+//!                                   ⎡ 0.0390625  0          0         0 ⎤
+//! [ xw yw zw 1 ] = [ xq yq zq 1 ] * ⎢ 0          0.0390625  0         0 ⎥
+//!                                   ⎢ 0          0          0.0390625 0 ⎥
+//!                                   ⎣ -9.53125 -24.3359375 -9.6875    1 ⎦
+//! ```
+//!
+//! Where:
+//!  * `[x​w​, y​w​, z​w 1]​` are WHS coordinates (RAS directions, expressed
+//!    in millimeters).
+//!  * `[x​q​, y​q, z​q 1]`​ are MeshView coordinates for the **WHS Rat 39 μm**
+//!    package (RAS directions, expressed in 39.0625 μm voxels).
+//!
+//!
+//!
+//! [MeshView]: http://www.nesys.uio.no/MeshView/meshview.html?atlas=WHS_SD_rat_atlas_v2
+//! [University of Oslo]: https://www.med.uio.no/imb/english/research/groups/neural-systems/index.html
+//! [Waxholm Space Atlas]: https://www.nitrc.org/projects/whs-sd-atlas
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -102,8 +212,18 @@ fn convert(string: &str) -> Result<Vec<SpatialObject>, Error> {
         .collect())
 }
 
+/// Read a XYZ file and convert it to the internal format for indexing.
+///
+/// This only converts the data point definitions, a reference space
+/// needs to be provided as well to be able to build an index.
+///
+///  # Parameters
+///
+///  * `name`:
+///      Base name of the file,
+///       * `.xyz` will be automatically appended for the source file, while
+///       * `.bin` will be appended for the output file.
 pub fn from(name: &str) -> Result<(), Error> {
-    // Convert Reference Space definitions
     let fn_in = format!("{}.xyz", name);
     let fn_out = format!("{}.bin", name);
 

@@ -1,3 +1,5 @@
+//! Bincode support
+
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Error;
@@ -9,6 +11,12 @@ use serde::Serialize;
 
 use super::model;
 
+/// Deserialize a data structure.
+///
+/// # Parameters
+///
+///  * `from`:
+///      File to read, which contains Bincode data.
 pub fn load<T>(from: &str) -> Result<T, Error>
 where
     T: DeserializeOwned,
@@ -26,6 +34,15 @@ where
     }
 }
 
+/// Serialize a data structure.
+///
+/// # Parameters
+///
+///  * `data`:
+///      Data to serialize.
+///
+///  * `to`:
+///      File to use to store the serialized data.
 pub fn store<T>(data: T, to: &str) -> Result<(), Error>
 where
     T: Serialize,
@@ -44,6 +61,32 @@ where
     }
 }
 
+/// Build an index from the input files.
+///
+/// # Parameters
+///
+///  * `name`:
+///      Index name, this value will also be used to generate file names
+///      as such:
+///       * `.spaces.bin` and `.objects.bin` will be appended for the
+///          input files.
+///       * `.index` will be appended for the index file.
+///
+/// * `version`:
+///     Parameter to distinguish revisions of an index.
+///
+/// * `scales`:
+///     An optional list of specific index resolutions to generates on
+///     top of the full resolution one.
+///
+/// * `max_elements`:
+///     If this is specified, automatically generates scaled indices, by
+///     halving the number elements between resolutions, and stop
+///     generating indices either when the number of points remaining is
+///     equal to the number of distinct Ids, or smaller or equal to this
+///     value.
+///
+/// **Note**: `max_elements` is ignored when `scales` is not `None`.
 pub fn build(
     name: &str,
     version: &str,

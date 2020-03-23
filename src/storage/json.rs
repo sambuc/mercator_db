@@ -1,3 +1,5 @@
+//! JSON support
+
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Error;
@@ -29,6 +31,14 @@ where
     }
 }
 
+/// Deserialise a JSON file.
+///
+/// # Parameters
+///
+///  * `name`:
+///      Base name of the file,
+///       * `.xyz` will be automatically appended for the source file, while
+///       * `.bin` will be appended for the output file.
 pub fn from<T>(name: &str) -> Result<(), Error>
 where
     T: Serialize + DeserializeOwned,

@@ -1,12 +1,11 @@
 mod db_core;
 pub mod space;
 mod space_db;
-mod space_index;
+pub(crate) mod space_index;
 
 use std::collections::HashMap;
 
 use ironsea_index::Indexed;
-use serde::Serialize;
 
 use super::storage;
 pub use db_core::Core;
@@ -14,27 +13,36 @@ pub use db_core::CoreQueryParameters;
 pub use db_core::Properties;
 use space::Position;
 use space::Space;
-pub use space_index::SpaceFields;
-pub use space_index::SpaceSetObject;
 
-// (Space Name, Position, Fields)
+/// Selected tuples matching a query.
+///
+/// This is either:
+///  * `Err` with a reason stored as a `String`
+///  * `Ok`, with a vector of tuples defined as:
+///        `(Space Name, [(Position, Properties)])`
 pub type ResultSet<'r> = Result<Vec<(&'r String, Vec<(Position, &'r Properties)>)>, String>;
-pub type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
+
+type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
 type CoreIndex = ironsea_index_hashmap::Index<Core, String>;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
-pub struct SpaceObject {
-    pub space_id: String,
-    pub position: Position,
-    pub value: Properties,
-}
-
+/// Collection of datasets and their reference spaces.
 pub struct DataBase {
     reference_spaces: ReferenceSpaceIndex,
     cores: CoreIndex,
 }
 
 impl DataBase {
+    /// Instantiate a `DataBase` struct.
+    ///
+    /// # Parameters
+    ///
+    ///  * `spaces`:
+    ///      List of reference spaces.
+    ///
+    ///  * `cores`:
+    ///      List of datasets (cores) which will be queried through this
+    ///      `DataBase` struct.
+    // TODO: Replace vectors with iterators?
     pub fn new(spaces: Vec<Space>, cores: Vec<Core>) -> Self {
         DataBase {
             reference_spaces: ReferenceSpaceIndex::new(spaces.into_iter()),
@@ -42,6 +50,12 @@ impl DataBase {
         }
     }
 
+    /// Load a list of indices.
+    ///
+    /// # Parameters
+    ///
+    ///  * `indices`:
+    ///      The list of index file names to load.
     pub fn load(indices: &[&str]) -> Result<Self, String> {
         let mut spaces = HashMap::new();
         let mut cores = vec![];
@@ -99,12 +113,17 @@ impl DataBase {
         }
     }
 
-    // Lookup a space within the reference spaces registered
+    /// Returns an ordered list of the reference space names registered.
     pub fn space_keys(&self) -> &Vec<String> {
         self.reference_spaces.keys()
     }
 
-    // Lookup a space within the reference spaces registered
+    /// Lookup a space within the reference spaces registered.
+    ///
+    /// # Parameters
+    ///
+    ///  * `name`:
+    ///      The name of the reference space to search for.
     pub fn space(&self, name: &str) -> Result<&Space, String> {
         if name == space::Space::universe().name() {
             Ok(space::Space::universe())
@@ -115,12 +134,17 @@ impl DataBase {
         }
     }
 
-    // Lookup a space within the reference spaces registered
+    /// Returns an ordered list of dataset (Core) names registered.
     pub fn core_keys(&self) -> &Vec<String> {
         self.cores.keys()
     }
 
-    // Lookup a dataset within the datasets registered
+    /// Lookup a dataset within the datasets registered.
+    ///
+    /// # Parameters
+    ///
+    ///  * `name`:
+    ///      The name of the dataset (core) to search for.
     pub fn core(&self, name: &str) -> Result<&Core, String> {
         let r = self.cores.find(&name.to_string());
 

@@ -9,15 +9,31 @@ use super::space_index::SpaceSetObject;
 use super::DataBase;
 use super::ResultSet;
 
+/// Query Parameters.
 pub struct CoreQueryParameters<'a> {
+    /// Database to use.
     pub db: &'a DataBase,
+    /// Output reference space into which to convert results.
     pub output_space: Option<&'a str>,
+    /// Volume value to use to select the index resolution.
+    //FIXME: IS this necessary given view_port?
     pub threshold_volume: Option<f64>,
+    /// Full definition of the view port, a.k.a the volume being
+    /// displayed.
     pub view_port: &'a Option<(Vec<f64>, Vec<f64>)>,
+    /// Index resolution to use.
     pub resolution: &'a Option<Vec<u32>>,
 }
 
 impl CoreQueryParameters<'_> {
+    /// Build a minimum bounding box out of the provided viewport, and
+    /// rebase it in the target space.
+    ///
+    /// # Parameters
+    ///
+    ///  * `space`:
+    ///      Space to use for the encoded coordinates of the minimum
+    ///      bounding box.
     pub fn view_port(&self, space: &Space) -> Option<Shape> {
         if let Some((low, high)) = self.view_port {
             let view_port = Shape::BoundingBox(low.into(), high.into());
@@ -31,14 +47,21 @@ impl CoreQueryParameters<'_> {
     }
 }
 
+/// Definition of the volumetric objects identifiers.
+///
+/// We have two parts to it, first the *kind* and the actual, *id* used
+/// to distinguish different objects.
 // FIXME: Ids are expected unique, irrespective of the enum variant!
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Properties {
+    /// Spatial Features.
     Feature(String),
+    /// Unoptimized arbitrary kind of *identifiers*.
     Unknown(String, String),
 }
 
 impl Properties {
+    /// Extract the *identifier* of this spatial object.
     pub fn id(&self) -> &str {
         match self {
             Properties::Feature(id) => id,
@@ -46,6 +69,7 @@ impl Properties {
         }
     }
 
+    /// Extract the *kind* of spatial object.
     pub fn type_name(&self) -> &str {
         match self {
             Properties::Feature(_) => "Feature",
@@ -53,6 +77,13 @@ impl Properties {
         }
     }
 
+    /// Instantiate a new *feature*.
+    ///
+    /// # Parameters
+    ///
+    ///  * `id`:
+    ///      The identifier of the object, which can be converted into a
+    ///      `String`.
     pub fn feature<S>(id: S) -> Properties
     where
         S: Into<String>,
@@ -60,6 +91,17 @@ impl Properties {
         Properties::Feature(id.into())
     }
 
+    /// Instantiate a new arbitrary kind of object, with the given id.
+    ///
+    /// # Parameters
+    ///
+    ///  * `id`:
+    ///      The identifier of the object, which can be converted into a
+    ///      `String`.
+    ///
+    ///  * `type_name`:
+    ///      A value which can be converted into a `String`, and
+    ///      represent the **kind** of the object.
     pub fn unknown<S>(id: S, type_name: S) -> Properties
     where
         S: Into<String>,
@@ -68,6 +110,7 @@ impl Properties {
     }
 }
 
+/// Index over a single dataset
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Core {
     title: String,
@@ -77,6 +120,43 @@ pub struct Core {
 }
 
 impl Core {
+    /// Instantiate a new index for a dataset.
+    ///
+    /// # Parameters
+    ///
+    ///  * `title`:
+    ///     The title to use for the new dataset.
+    ///
+    ///  * `version`:
+    ///     The revision of the new dataset.
+    ///
+    ///  * `spaces`:
+    ///     The list of reference spaces used within the dataset.
+    ///
+    ///  * `properties`:
+    ///     The *identifiers*, has an ordered list, which is referenced
+    ///     by the `space_objects` by offset within this list.
+    ///
+    ///  * `space_objects`:
+    ///     A list of links between volumetric positions and
+    ///     identifiers.
+    ///
+    ///  * `scales`:
+    ///     A list of resolutions for which to build indices. Each value
+    ///     represent the number of bits of precision to **remove** from
+    ///     the coordinates to build the index.
+    ///
+    ///  * `max_elements`:
+    ///     The minimum number of positions to use as a stopping
+    ///     condition while building automatically multiple resolutions
+    ///     of the index.
+    ///
+    ///     Each consecutive index will contains at most half the number
+    ///     of data points than the next finer-grained index.
+    ///
+    ///     The minimum number of elements contained within an index is
+    ///     this value or the number of *identifiers*, whichever is
+    ///     greater.
     pub fn new<S>(
         title: S,
         version: S,
@@ -125,14 +205,17 @@ impl Core {
         })
     }
 
+    /// Title of the dataset.
     pub fn name(&self) -> &String {
         &self.title
     }
 
+    /// Revision of the dataset.
     pub fn version(&self) -> &String {
         &self.version
     }
 
+    /// List of *identifiers* contained in this dataset.
     pub fn keys(&self) -> &Vec<Properties> {
         &self.properties
     }
@@ -164,13 +247,26 @@ impl Core {
         Ok(())
     }
 
-    // Search by positions defining a volume.
-    // Positions ARE DEFINED IN F64 VALUES IN THE SPACE. NOT ENCODED!
+    /// Retrieve everything located at specific positions.
+    ///
+    /// # Parameters
+    ///
+    ///  * `parameters`:
+    ///     Search parameters, see [CoreQueryParameters](struct.CoreQueryParameters.html).
+    ///
+    ///  * `positions`:
+    ///     Volume to use to filter data points.
+    ///
+    ///  * `space_id`:
+    ///     *positions* are defined as decoded coordinates in this
+    ///     reference space.
+    ///
+    /// [shape]: space/enum.Shape.html
     pub fn get_by_positions(
         &self,
         parameters: &CoreQueryParameters,
         positions: &[Position],
-        from: &str,
+        space_id: &str,
     ) -> ResultSet {
         let CoreQueryParameters {
             db, output_space, ..
@@ -178,7 +274,7 @@ impl Core {
 
         let mut results = vec![];
         let count = positions.len();
-        let from = db.space(from)?;
+        let from = db.space(space_id)?;
 
         // Filter positions based on the view port, if present
         let filtered = match parameters.view_port(from) {
@@ -211,12 +307,21 @@ impl Core {
         Ok(results)
     }
 
-    // Search by shape defining a volume:
-    // * Hyperrectangle (MBB),
-    // * HyperSphere (radius around a point),
-    // * Point (Specific position)
-
-    // SHAPE IS DEFINED IN F64 VALUES IN THE SPACE. NOT ENCODED!
+    /// Search using a [shape] which defines a volume.
+    ///
+    /// # Parameters
+    ///
+    ///  * `parameters`:
+    ///     Search parameters, see [CoreQueryParameters](struct.CoreQueryParameters.html).
+    ///
+    ///  * `shape`:
+    ///     Volume to use to filter data points.
+    ///
+    ///  * `space_id`:
+    ///     *shape* is defined as decoded coordinates in this
+    ///     reference space.
+    ///
+    /// [shape]: space/enum.Shape.html
     pub fn get_by_shape(
         &self,
         parameters: &CoreQueryParameters,
@@ -251,7 +356,16 @@ impl Core {
         Ok(results)
     }
 
-    // Search by Id, a.k.a values
+    /// Search by Id, a.k.a retrieve all the positions linked to this id.
+    ///
+    /// # Parameters
+    ///
+    ///  * `parameters`:
+    ///     Search parameters, see [CoreQueryParameters](struct.CoreQueryParameters.html).
+    ///
+    ///  * `id`:
+    ///     Identifier for which to retrieve is positions.
+    ///
     pub fn get_by_id<S>(
         &self,
         parameters: &CoreQueryParameters,
@@ -305,8 +419,17 @@ impl Core {
         Ok(results)
     }
 
-    // Search by Label, a.k.a within a volume defined by the positions of an Id.
-    // FIXME: NEED TO KEEP TRACK OF SPACE IDS AND DO CONVERSIONS
+    /// Search by label, a.k.a use an identifier to define the search
+    /// volume.
+    ///
+    /// # Parameters
+    ///
+    ///  * `parameters`:
+    ///     Search parameters, see [CoreQueryParameters](struct.CoreQueryParameters.html).
+    ///
+    ///  * `id`:
+    ///     Identifier to use to define the search volume.
+    ///
     pub fn get_by_label<S>(&self, parameters: &CoreQueryParameters, id: S) -> ResultSet
     where
         S: Into<String>,
