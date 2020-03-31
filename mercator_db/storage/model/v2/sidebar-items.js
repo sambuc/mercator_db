@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Shape","Describes an homogeneous list of geometric shapes."]],"fn":[["to_spatial_objects","Convert a list of properties grouped by space id, then positions to a list of Spatial Objects for the rest API v2."]],"struct":[["SpatialObject","Links Properties to a list of spatial volumes."],["Volume","Defines a volume as the union of geometric shapes."]]});

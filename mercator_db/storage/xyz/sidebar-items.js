@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["from","Read a XYZ file and convert it to the internal format for indexing."]]});

@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `xyz` mod in crate `mercator_db`."><meta name="keywords" content="rust, rustlang, rust-lang, xyz"><title>mercator_db::storage::xyz - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../mercator_db/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a><p class='location'>Module xyz</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../../index.html'>mercator_db</a>::<wbr><a href='../index.html'>storage</a></p><script>window.sidebarCurrent = {name: 'xyz', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/mercator_db/storage/xyz.rs.html#1-237' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>mercator_db</a>::<wbr><a href='../index.html'>storage</a>::<wbr><a class="mod" href=''>xyz</a></span></h1><div class='docblock'><h1 id="xyz-file-format" class="section-header"><a href="#xyz-file-format">XYZ file format</a></h1>
+<p>This module support reading files read by <a href="http://www.nesys.uio.no/MeshView/meshview.html?atlas=WHS_SD_rat_atlas_v2">MeshView</a> tool used at
+the <a href="https://www.med.uio.no/imb/english/research/groups/neural-systems/index.html">University of Oslo</a>.</p>
+<h1 id="file-structure" class="section-header"><a href="#file-structure">File structure</a></h1>
+<p>Each files begins with:</p>
+<pre><code class="language-txt">RGBA [Red] [Green] [Blue] [Alpha] # RGBA
+[X],[Y],[Z] # WHS Origin
+[X],[Y],[Z] # Bregma
+
+SCALE [F]
+</code></pre>
+<ul>
+<li><code>RGBA [Red] [Green] [Blue] [Alpha]</code>: defines the color to use for
+the following points</li>
+<li><code>[X],[Y],[Z] # WHS Origin</code>: defines where the Waxholm Origin is
+in Voxel coordinates.</li>
+<li><code>[X],[Y],[Z] # Bregma</code>: same as above, for another reference
+space.</li>
+<li><code>SCALE [F]</code>: <strong>TBC</strong> Size of the voxels.</li>
+</ul>
+<p>The rest of the file contains (one per line):</p>
+<ul>
+<li>coordinate triplets (x, y and z), each  representing one point
+coordinate.</li>
+<li><code>RGB [Red] [Green] [Blue]</code>: Which applies from that line
+until further notice.</li>
+<li>A comment Line, starting with <code>#</code></li>
+</ul>
+<h2 id="file-coordinate-system" class="section-header"><a href="#file-coordinate-system">File Coordinate system</a></h2>
+<p>Coordinates in MeshView follow RAS (Right-Anterior-Superior)
+orientation and are expressed in voxels:</p>
+<ul>
+<li>First axis <code>x</code> starts from the left side of the volume, and
+points towards the right.</li>
+<li>Second axis <code>y</code> starts from the backmost position in the volume,
+and points towards the front.</li>
+<li>Third axis <code>z</code> starts from the bottom of the volume and points
+towards the top.</li>
+</ul>
+<h1 id="waxholm-space" class="section-header"><a href="#waxholm-space">Waxholm Space</a></h1><h2 id="conversion-to-waxholm-space" class="section-header"><a href="#conversion-to-waxholm-space">Conversion to Waxholm Space</a></h2>
+<p>The <a href="https://www.nitrc.org/projects/whs-sd-atlas">Waxholm Space Atlas</a> of the Sprague Dawley Rat Brain (WHS) uses
+the same axis order and orientation as the MeshView tool, there is
+only a translation of the origin, and scaling have to be applied.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<pre><code class="language-txt">RGBA 1 0 0 1 # RGBA
+244,623,248 # WHS Origin
+246,653,440 # Bregma
+
+#Aar27s49 26 0
+RGB 0.12941176470588237 0.403921568627451 0.1607843137254902
+221.40199877 413.34541500312037 172.79973508489095
+220.5800097805 412.82939421970866 173.56428074436994
+
+#Aar27s48 49 0
+RGB 0.12941176470588237 0.403921568627451 0.1607843137254902
+237.35325687425 412.5720395183866 176.6713556605702
+</code></pre>
+<h2 id="conversion-to-waxholm" class="section-header"><a href="#conversion-to-waxholm">Conversion to Waxholm</a></h2>
+<p>Assuming the following extents of &quot;WHS Rat 39 μm&quot; in voxels:</p>
+<ul>
+<li>Leftmost sagittal plane: <code>x = 0</code></li>
+<li>Backmost coronal plane: <code>y = 0</code></li>
+<li>Bottommost horizontal plane: <code>z = 0</code></li>
+<li>Rightmost sagittal plane: <code>x = 511</code></li>
+<li>Frontmost coronal plane: <code>y = 1023</code></li>
+<li>Topmost horizontal plane: <code>z = 511</code></li>
+</ul>
+<p><strong>NOTE</strong>: Directions are deliberately matching the default
+orientation of ​NIfTI​ data.</p>
+<ol>
+<li>As per the <code>WHS Origin</code> directive, it is at 244, 623, 248 voxel
+coordinates, which means each coordinate must be subtracted with
+the corresponding value, then</li>
+<li>the coordinates must be converted to millimeters, a.k.a
+multiplied by the atlas resolution. For the atlas of this example
+it is 0.0390625 [mm], isotropic.</li>
+</ol>
+<p>This gives us the following conversion formula:</p>
+<pre><code class="language-txt">                                  ⎡ 0.0390625  0          0         0 ⎤
+[ xw yw zw 1 ] = [ xq yq zq 1 ] * ⎢ 0          0.0390625  0         0 ⎥
+                                  ⎢ 0          0          0.0390625 0 ⎥
+                                  ⎣ -9.53125 -24.3359375 -9.6875    1 ⎦
+</code></pre>
+<p>Where:</p>
+<ul>
+<li><code>[x​w​, y​w​, z​w 1]​</code> are WHS coordinates (RAS directions, expressed
+in millimeters).</li>
+<li><code>[x​q​, y​q, z​q 1]</code>​ are MeshView coordinates for the <strong>WHS Rat 39 μm</strong>
+package (RAS directions, expressed in 39.0625 μm voxels).</li>
+</ul>
+</div><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table><tr class='module-item'><td><a class="fn" href="fn.from.html" title='mercator_db::storage::xyz::from fn'>from</a></td><td class='docblock-short'><p>Read a XYZ file and convert it to the internal format for indexing.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "mercator_db";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

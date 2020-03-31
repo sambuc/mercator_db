@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Index","Implementation of [`ironsea_index`]::[`Indexed`]."],["IndexDestructured","Implementation of [`ironsea_index`]::[`IndexedDestructured`]."]]});

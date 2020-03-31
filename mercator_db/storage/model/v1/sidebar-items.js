@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["to_spatial_objects","Convert a list of properties grouped by space id, then positions to a list of Spatial Objects for the rest API v1."]],"struct":[["Shape","Define a Shape, within a specific reference space."],["SpatialObject","Links Properties to a list of spatial volumes."]]});
