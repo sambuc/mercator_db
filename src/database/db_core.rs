@@ -7,6 +7,8 @@ use super::space::Space;
 use super::space_db::SpaceDB;
 use super::space_index::SpaceSetObject;
 use super::DataBase;
+use super::IterObjects;
+use super::IterPositions;
 use super::ResultSet;
 
 /// Query Parameters.
@@ -220,31 +222,37 @@ impl Core {
         &self.properties
     }
 
-    fn decode_positions(
-        list: &mut [(Position, &Properties)],
-        space: &Space,
-        db: &DataBase,
+    fn decode_positions<'b>(
+        list: IterObjects<'b>,
+        space: &'b Space,
+        db: &'b DataBase,
         output_space: &Option<&str>,
-    ) -> Result<(), String> {
-        if let Some(unified_id) = *output_space {
+    ) -> Result<IterObjects<'b>, String> {
+        let b: IterObjects = if let Some(unified_id) = *output_space {
             let unified = db.space(unified_id)?;
 
             // Rebase the point to the requested output space before decoding.
-            for (position, _) in list {
-                *position = unified
-                    .decode(&Space::change_base(&position, space, unified)?)?
-                    .into();
-            }
+            Box::new(list.filter_map(move |(position, properties)| {
+                match Space::change_base(&position, space, unified) {
+                    Err(_) => None,
+                    Ok(rebased) => match unified.decode(&rebased) {
+                        Err(_) => None,
+                        Ok(decoded) => Some((decoded.into(), properties)),
+                    },
+                }
+            }))
         } else {
             // Decode the positions into f64 values, which are defined in their
             // respective reference space.
-            for (position, _) in list {
-                // Simply decode
-                *position = space.decode(&position)?.into();
-            }
-        }
+            Box::new(list.filter_map(
+                move |(position, properties)| match space.decode(&position) {
+                    Err(_) => None,
+                    Ok(decoded) => Some((decoded.into(), properties)),
+                },
+            ))
+        };
 
-        Ok(())
+        Ok(b)
     }
 
     /// Retrieve everything located at specific positions.
@@ -262,46 +270,57 @@ impl Core {
     ///     reference space.
     ///
     /// [shape]: space/enum.Shape.html
-    pub fn get_by_positions(
-        &self,
-        parameters: &CoreQueryParameters,
-        positions: &[Position],
-        space_id: &str,
-    ) -> ResultSet {
+    pub fn get_by_positions<'d>(
+        &'d self,
+        parameters: &'d CoreQueryParameters,
+        positions: Vec<Position>,
+        space_id: &'d str,
+    ) -> ResultSet<'d> {
         let CoreQueryParameters {
             db, output_space, ..
         } = parameters;
 
         let mut results = vec![];
-        let count = positions.len();
         let from = db.space(space_id)?;
-
-        // Filter positions based on the view port, if present
-        let filtered = match parameters.view_port(from) {
-            None => positions.iter().map(|p| p).collect::<Vec<_>>(),
-            Some(view_port) => positions
-                .iter()
-                .filter(|&p| view_port.contains(p))
-                .collect::<Vec<_>>(),
-        };
 
         for s in &self.space_db {
             let to = db.space(s.name())?;
-            let mut p = Vec::with_capacity(count);
 
-            for position in filtered.as_slice() {
-                let position: Vec<f64> = Space::change_base(position, from, to)?.into();
-                p.push(to.encode(&position)?);
-            }
+            // Filter positions based on the view port, if present
+            // FIXME: remove clone() on positions?
+            let filtered: IterPositions = match parameters.view_port(from) {
+                None => Box::new(positions.clone().into_iter()),
+                Some(view_port) => Box::new(
+                    positions
+                        .clone()
+                        .into_iter()
+                        .filter(move |p| view_port.contains(p)),
+                ),
+            };
 
-            let mut r = s
-                .get_by_positions(&p, parameters)?
-                .into_iter()
-                .map(|(position, fields)| (position, &self.properties[fields.value()]))
-                .collect::<Vec<_>>();
-            Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
+            // Rebase the positions into the current space
+            let p = filtered.filter_map(move |position| {
+                match Space::change_base(&position, from, to) {
+                    Err(_) => None,
+                    Ok(position) => {
+                        let position: Vec<f64> = position.into();
+                        match to.encode(&position) {
+                            Err(_) => None,
+                            Ok(position) => Some(position),
+                        }
+                    }
+                }
+            });
 
-            results.push((s.name(), r));
+            // Select the data based on the rebased viewport filter.
+            let r = s
+                .get_by_positions(p, parameters)?
+                .map(move |(position, fields)| (position, &self.properties[fields.value()]));
+
+            results.push((
+                s.name(),
+                Self::decode_positions(Box::new(r), to, db, output_space)?,
+            ));
         }
 
         Ok(results)
@@ -322,12 +341,12 @@ impl Core {
     ///     reference space.
     ///
     /// [shape]: space/enum.Shape.html
-    pub fn get_by_shape(
-        &self,
-        parameters: &CoreQueryParameters,
-        shape: &Shape,
-        space_id: &str,
-    ) -> ResultSet {
+    pub fn get_by_shape<'d>(
+        &'d self,
+        parameters: &'d CoreQueryParameters,
+        shape: Shape,
+        space_id: &'d str,
+    ) -> ResultSet<'d> {
         let CoreQueryParameters {
             db, output_space, ..
         } = parameters;
@@ -343,14 +362,14 @@ impl Core {
             //            let current_shape = shape.encode(current_space)?;
             //            println!("current shape Encoded: {:?}", current_shape);
 
-            let mut r = s
-                .get_by_shape(&current_shape, parameters)?
-                .into_iter()
-                .map(|(position, fields)| (position, &self.properties[fields.value()]))
-                .collect::<Vec<_>>();
-            Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
+            let r = s
+                .get_by_shape(current_shape, parameters)?
+                .map(move |(position, fields)| (position, &self.properties[fields.value()]));
 
-            results.push((s.name(), r));
+            results.push((
+                s.name(),
+                Self::decode_positions(Box::new(r), current_space, db, output_space)?,
+            ));
         }
 
         Ok(results)
@@ -366,11 +385,11 @@ impl Core {
     ///  * `id`:
     ///     Identifier for which to retrieve is positions.
     ///
-    pub fn get_by_id<S>(
-        &self,
-        parameters: &CoreQueryParameters,
+    pub fn get_by_id<'s, S>(
+        &'s self,
+        parameters: &'s CoreQueryParameters,
         id: S,
-    ) -> Result<Vec<(&String, Vec<Position>)>, String>
+    ) -> Result<Vec<(&String, IterPositions<'s>)>, String>
     where
         S: Into<String>,
     {
@@ -391,26 +410,32 @@ impl Core {
             for s in &self.space_db {
                 let current_space = db.space(s.name())?;
 
-                let mut positions = s.get_by_id(offset, parameters)?;
+                let positions_by_id = s.get_by_id(offset, parameters)?;
 
                 //Self::decode_positions(r.as_mut_slice(), current_space, db, output_space)?;
-                if let Some(unified_id) = *output_space {
+                let positions: IterPositions = if let Some(unified_id) = *output_space {
                     let unified = db.space(unified_id)?;
 
                     // Rebase the point to the requested output space before decoding.
-                    for position in &mut positions {
-                        *position = unified
-                            .decode(&Space::change_base(position, current_space, unified)?)?
-                            .into();
-                    }
+                    Box::new(positions_by_id.filter_map(move |position| {
+                        match Space::change_base(&position, current_space, unified) {
+                            Err(_) => None,
+                            Ok(rebased) => match unified.decode(&rebased) {
+                                Err(_) => None,
+                                Ok(decoded) => Some(decoded.into()),
+                            },
+                        }
+                    }))
                 } else {
                     // Decode the positions into f64 values, which are defined in their
                     // respective reference space.
-                    for position in &mut positions {
-                        // Simply decode
-                        *position = current_space.decode(position)?.into();
-                    }
-                }
+                    Box::new(positions_by_id.filter_map(move |position| {
+                        match current_space.decode(&position) {
+                            Err(_) => None,
+                            Ok(decoded) => Some(decoded.into()),
+                        }
+                    }))
+                };
 
                 results.push((s.name(), positions));
             }
@@ -430,7 +455,11 @@ impl Core {
     ///  * `id`:
     ///     Identifier to use to define the search volume.
     ///
-    pub fn get_by_label<S>(&self, parameters: &CoreQueryParameters, id: S) -> ResultSet
+    pub fn get_by_label<'d, S>(
+        &'d self,
+        parameters: &'d CoreQueryParameters,
+        id: S,
+    ) -> ResultSet<'d>
     where
         S: Into<String>,
     {
@@ -454,7 +483,7 @@ impl Core {
             let search_volume = self
                 .space_db
                 .iter()
-                .filter_map(|s| {
+                .filter_map(move |s| {
                     match db.space(s.name()) {
                         Err(_) => None,
                         Ok(from) => match s.get_by_id(offset, parameters) {
@@ -477,40 +506,38 @@ impl Core {
                 })
                 .flat_map(|v| v);
 
-            let search_volume = if let Some(view) = view_port {
-                search_volume
-                    .filter(|p| view.contains(p))
-                    .collect::<Vec<_>>()
-            } else {
-                search_volume.collect::<Vec<_>>()
-            };
-
             // Select based on the volume, and filter out the label position themselves.
             for s in &self.space_db {
                 let to = db.space(s.name())?;
-                let mut p = vec![];
+
+                let search_volume: IterPositions = if let Some(view) = view_port.clone() {
+                    Box::new(search_volume.clone().filter(move |p| view.contains(p)))
+                } else {
+                    Box::new(search_volume.clone())
+                };
 
                 // Convert the search Volume into the target space.
-                for position in &search_volume {
-                    let position = Space::change_base(position, Space::universe(), to)?;
-                    p.push(position);
-                }
+                let p = search_volume.filter_map(move |position| {
+                    match Space::change_base(&position, Space::universe(), to) {
+                        Err(_) => None,
+                        Ok(position) => Some(position),
+                    }
+                });
 
-                let mut r = s
-                    .get_by_positions(&p, parameters)?
-                    .into_iter()
-                    .filter_map(|(position, fields)| {
+                let r = s
+                    .get_by_positions(p, parameters)?
+                    .filter_map(move |(position, fields)| {
                         if fields.value() == offset {
                             None
                         } else {
                             Some((position, &self.properties[fields.value()]))
                         }
-                    })
-                    .collect::<Vec<_>>();
+                    });
 
-                Self::decode_positions(r.as_mut_slice(), to, db, output_space)?;
-
-                results.push((s.name(), r));
+                results.push((
+                    s.name(),
+                    Self::decode_positions(Box::new(r), to, db, output_space)?,
+                ));
             }
         }
 

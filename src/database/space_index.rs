@@ -7,6 +7,7 @@ use serde::Serialize;
 use super::space::Coordinate;
 use super::space::Position;
 use super::space::Shape;
+use super::IterPositions;
 
 #[derive(Clone, Debug, Hash)]
 pub struct SpaceSetObject {
@@ -125,59 +126,63 @@ impl SpaceIndex {
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    pub fn find(&self, key: &Position) -> Vec<&SpaceFields> {
+    pub fn find<'s>(&'s self, key: &Position) -> Box<dyn Iterator<Item = &SpaceFields> + 's> {
         self.index.find(key)
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    fn find_range(&self, start: &Position, end: &Position) -> Vec<(Position, &SpaceFields)> {
+    fn find_range<'s>(
+        &'s self,
+        start: &Position,
+        end: &Position,
+    ) -> Box<dyn Iterator<Item = (Position, &SpaceFields)> + 's> {
         self.index.find_range(start, end)
     }
 
     // Inputs and Results are expressed in encoded space coordinates.
-    pub fn find_by_value(&self, id: &SpaceFields) -> Vec<Position> {
+    pub fn find_by_value<'s>(&'s self, id: &'s SpaceFields) -> IterPositions<'s> {
         self.index.find_by_value(id)
     }
 
     // Inputs and Results are also in encoded space coordinates.
-    pub fn find_by_shape(
-        &self,
-        shape: &Shape,
+    pub fn find_by_shape<'s>(
+        &'s self,
+        shape: Shape,
         view_port: &Option<Shape>,
-    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
+    ) -> Result<Box<dyn Iterator<Item = (Position, &SpaceFields)> + 's>, String> {
         match shape {
             Shape::Point(position) => {
                 if let Some(mbb) = view_port {
-                    if !mbb.contains(position) {
+                    if !mbb.contains(&position) {
                         return Err(format!(
                             "View port '{:?}' does not contain '{:?}'",
                             mbb, position
                         ));
                     }
                 }
-                Ok(self
-                    .find(position)
-                    .into_iter()
-                    .map(|fields| (position.clone(), fields))
-                    .collect())
+                Ok(Box::new(
+                    self.find(&position)
+                        .map(move |fields| (position.clone(), fields)),
+                ))
             }
             Shape::BoundingBox(bl, bh) => {
                 if let Some(mbb) = view_port {
                     match mbb {
                         Shape::BoundingBox(vl, vh) => {
                             // Compute the intersection of the two boxes.
-                            let lower = bl.max(vl);
-                            let higher = bh.min(vh);
+                            let lower = (&bl).max(vl);
+                            let higher = (&bh).min(vh);
                             if higher < lower {
                                 Err(format!(
                                     "View port '{:?}' does not intersect '{:?}'",
-                                    mbb, shape
+                                    mbb,
+                                    Shape::BoundingBox(bl.clone(), bh.clone())
                                 ))
                             } else {
                                 trace!(
                                     "mbb {:?} shape {:?} lower {:?} higher {:?}",
                                     mbb,
-                                    shape,
+                                    Shape::BoundingBox(bl.clone(), bh.clone()),
                                     lower,
                                     higher
                                 );
@@ -187,11 +192,11 @@ impl SpaceIndex {
                         _ => Err(format!("Invalid view port shape '{:?}'", mbb)),
                     }
                 } else {
-                    Ok(self.find_range(bl, bh))
+                    Ok(self.find_range(&bl, &bh))
                 }
             }
             Shape::HyperSphere(center, radius) => {
-                let (bl, bh) = &shape.get_mbb();
+                let (bl, bh) = Shape::HyperSphere(center.clone(), radius).get_mbb();
                 let lower;
                 let higher;
 
@@ -199,14 +204,14 @@ impl SpaceIndex {
                     match mbb {
                         Shape::BoundingBox(vl, vh) => {
                             // Compute the intersection of the two boxes.
-                            lower = bl.max(vl);
-                            higher = bh.min(vh);
+                            lower = (&bl).max(vl);
+                            higher = (&bh).min(vh);
                         }
                         _ => return Err(format!("Invalid view port shape '{:?}'", mbb)),
                     }
                 } else {
-                    lower = bl;
-                    higher = bh;
+                    lower = &bl;
+                    higher = &bh;
                 }
 
                 // Filter out results using using a range query over the MBB,
@@ -214,11 +219,9 @@ impl SpaceIndex {
                 // a sphere.
                 let results = self
                     .find_range(&lower, &higher)
-                    .into_iter()
-                    .filter(|(position, _)| (position - center).norm() <= radius.f64())
-                    .collect();
+                    .filter(move |(position, _)| (position - &center).norm() <= radius.f64());
 
-                Ok(results)
+                Ok(Box::new(results))
             }
         }
     }

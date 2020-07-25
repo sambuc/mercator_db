@@ -39,7 +39,7 @@ impl Shape {
                 //FIXME: Is the length properly dealt with? How do we process this for space conversions?
                 let mut r = Vec::with_capacity(center.dimensions());
                 for _ in 0..center.dimensions() {
-                    r.push(radius.clone());
+                    r.push(*radius);
                 }
                 let r = r.into();
                 let r = from.absolute_position(&r)?;

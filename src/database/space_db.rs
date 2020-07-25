@@ -15,6 +15,7 @@ use super::space_index::SpaceIndex;
 use super::space_index::SpaceSetIndex;
 use super::space_index::SpaceSetObject;
 use super::CoreQueryParameters;
+use super::IterPositions;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpaceDB {
@@ -59,8 +60,7 @@ impl SpaceDB {
             }
 
             // Apply fixed scales
-            let mut count = 0;
-            for power in &powers {
+            for (count, power) in powers.iter().enumerate() {
                 space_objects = space_objects
                     .into_iter()
                     .map(|mut o| {
@@ -79,8 +79,7 @@ impl SpaceDB {
                     .collect();
 
                 // Make sure we do not shift more position than available
-                let shift = if count >= 31 { 31 } else { count };
-                count += 1;
+                let shift = if count >= 31 { 31 } else { count as u32 };
                 indices.push((
                     SpaceSetIndex::new(space_objects.iter(), DIMENSIONS, CELL_BITS),
                     vec![power.0, power.0, power.0],
@@ -279,11 +278,11 @@ impl SpaceDB {
 
     // Search by Id, a.k.a values
     // The results are in encoded space coordinates.
-    pub fn get_by_id(
-        &self,
+    pub fn get_by_id<'s>(
+        &'s self,
         id: usize,
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<Position>, String> {
+    ) -> Result<IterPositions<'s>, String> {
         // Is that ID referenced in the current space?
         let index = self.resolution(parameters);
 
@@ -292,15 +291,20 @@ impl SpaceDB {
         let view_port = parameters.view_port(space);
 
         // Select the objects
-        let objects = self.resolutions[index].find_by_value(&SpaceFields::new(self.name(), id));
+        // FIXME: How to return an iterator instead of instantiating all
+        //        the points here? Needed because of &SpaceFields.
+        let objects = self.resolutions[index]
+            .find_by_value(&SpaceFields::new(self.name(), id))
+            .collect::<Vec<_>>();
 
-        let results = if let Some(view_port) = view_port {
-            objects
-                .into_iter()
-                .filter(|position| view_port.contains(position))
-                .collect::<Vec<_>>()
+        let results: IterPositions<'s> = if let Some(view_port) = view_port {
+            Box::new(
+                objects
+                    .into_iter()
+                    .filter(move |position| view_port.contains(position)),
+            )
         } else {
-            objects
+            Box::new(objects.into_iter())
         };
 
         Ok(results)
@@ -308,11 +312,11 @@ impl SpaceDB {
 
     // Search by positions defining a volume.
     // The position is expressed in encoded space coordinates, and results are in encoded space coordinates.
-    pub fn get_by_positions(
-        &self,
-        positions: &[Position],
+    pub fn get_by_positions<'s>(
+        &'s self,
+        positions: impl Iterator<Item = Position> + 's,
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
+    ) -> Result<Box<dyn Iterator<Item = (Position, &SpaceFields)> + 's>, String> {
         let index = self.resolution(parameters);
 
         // FIXME: Should I do it here, or add the assumption this is a clean list?
@@ -321,17 +325,13 @@ impl SpaceDB {
         //let view_port = parameters.view_port(space);
 
         // Select the objects
-        let results = positions
-            .iter()
-            .flat_map(|position| {
-                self.resolutions[index]
-                    .find(position)
-                    .into_iter()
-                    .map(move |fields| (position.clone(), fields))
-            })
-            .collect();
+        let results = positions.flat_map(move |position| {
+            self.resolutions[index]
+                .find(&position)
+                .map(move |fields| (position.clone(), fields))
+        });
 
-        Ok(results)
+        Ok(Box::new(results))
     }
 
     // Search by Shape defining a volume:
@@ -340,11 +340,11 @@ impl SpaceDB {
     // * Point (Specific position)
 
     // The Shape is expressed in encoded space coordinates, and results are in encoded space coordinates.
-    pub fn get_by_shape(
-        &self,
-        shape: &Shape,
+    pub fn get_by_shape<'s>(
+        &'s self,
+        shape: Shape,
         parameters: &CoreQueryParameters,
-    ) -> Result<Vec<(Position, &SpaceFields)>, String> {
+    ) -> Result<Box<dyn Iterator<Item = (Position, &SpaceFields)> + 's>, String> {
         let index = self.resolution(parameters);
 
         // Convert the view port to the encoded space coordinates
@@ -352,7 +352,7 @@ impl SpaceDB {
         let view_port = parameters.view_port(space);
 
         // Select the objects
-        let results = self.resolutions[index].find_by_shape(&shape, &view_port)?;
+        let results = self.resolutions[index].find_by_shape(shape, &view_port)?;
 
         Ok(results)
     }

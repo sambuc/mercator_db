@@ -14,13 +14,20 @@ pub use db_core::Properties;
 use space::Position;
 use space::Space;
 
+/// TODO doc
+pub type IterPositions<'i> = Box<dyn Iterator<Item = Position> + 'i>;
+/// TODO doc
+pub type IterObjects<'i> = Box<dyn Iterator<Item = (Position, &'i Properties)> + 'i>;
+/// TODO doc
+pub type IterObjectsBySpaces<'i> = Vec<(&'i String, IterObjects<'i>)>;
+
 /// Selected tuples matching a query.
 ///
 /// This is either:
 ///  * `Err` with a reason stored as a `String`
 ///  * `Ok`, with a vector of tuples defined as:
 ///        `(Space Name, [(Position, Properties)])`
-pub type ResultSet<'r> = Result<Vec<(&'r String, Vec<(Position, &'r Properties)>)>, String>;
+pub type ResultSet<'r> = Result<IterObjectsBySpaces<'r>, String>;
 
 type ReferenceSpaceIndex = ironsea_index_hashmap::Index<Space, String>;
 type CoreIndex = ironsea_index_hashmap::Index<Core, String>;
@@ -128,7 +135,10 @@ impl DataBase {
         if name == space::Space::universe().name() {
             Ok(space::Space::universe())
         } else {
-            let r = self.reference_spaces.find(&name.to_string());
+            let r = self
+                .reference_spaces
+                .find(&name.to_string())
+                .collect::<Vec<_>>();
 
             Self::check_exactly_one(&r, "spaces", name)
         }
@@ -146,7 +156,7 @@ impl DataBase {
     ///  * `name`:
     ///      The name of the dataset (core) to search for.
     pub fn core(&self, name: &str) -> Result<&Core, String> {
-        let r = self.cores.find(&name.to_string());
+        let r = self.cores.find(&name.to_string()).collect::<Vec<_>>();
 
         Self::check_exactly_one(&r, "cores", name)
     }

@@ -60,7 +60,8 @@ impl Position {
     /// Compute `||self||`.
     pub fn norm(&self) -> f64 {
         if let Position::Position1(coordinates) = self {
-            // the square root of a single number to the square is its positive value, so ensure it is.
+            // the square root of a single number to the square is its
+            // positive value, so ensure it is.
             coordinates.f64().abs()
         } else {
             let point: Vec<&Coordinate> = self.into();

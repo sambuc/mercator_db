@@ -68,9 +68,8 @@ pub mod v1 {
     use serde::Deserialize;
     use serde::Serialize;
 
-    use crate::database;
-    use database::space;
-
+    use super::database;
+    use super::space;
     use super::Point;
     use super::Properties;
 
@@ -87,7 +86,8 @@ pub mod v1 {
     /// Define a Shape, within a specific reference space.
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct Shape {
-        /// Type of the shape, which is used to interpret the list of `vertices`.
+        /// Type of the shape, which is used to interpret the list of
+        /// `vertices`.
         #[serde(rename = "type")]
         pub type_name: String,
 
@@ -99,8 +99,8 @@ pub mod v1 {
         pub vertices: Vec<Point>,
     }
 
-    /// Convert a list of properties grouped by space id, then positions to a
-    /// list of Spatial Objects for the rest API v1.
+    /// Convert a list of properties grouped by space id, then positions
+    /// to a list of Spatial Objects for the rest API v1.
     ///
     /// # Parameters
     ///
@@ -109,7 +109,8 @@ pub mod v1 {
     pub fn to_spatial_objects(
         list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
     ) -> Vec<SpatialObject> {
-        // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
+        // Filter per Properties, in order to regroup by it, then build
+        // a single SpatialObject per Properties.
         let mut hashmap = HashMap::new();
         for (space, v) in list {
             for (position, properties) in v {
@@ -150,9 +151,8 @@ pub mod v2 {
     use serde::Deserialize;
     use serde::Serialize;
 
-    use crate::database;
-    use database::space;
-
+    use super::database;
+    use super::space;
     use super::Point;
     use super::Properties;
 
@@ -208,46 +208,91 @@ pub mod v2 {
         HyperSpheres(Vec<(Point, f64)>),
     }
 
-    /// Convert a list of properties grouped by space id, then positions to a
-    /// list of Spatial Objects for the rest API v2.
+    /// Convert a list of space id grouped by properties, then positions
+    /// to a list of Spatial Objects for the rest API v2.
+    ///
+    /// # Parameters
+    ///
+    ///  * `list`:
+    ///      A list of (`&Properties`, [ ( **Space Id**, [ *Spatial position* ] ) ]) tuples.
+    #[allow(clippy::type_complexity)]
+    // Type alias cannot be used as Traits, so we can't use the alias to add the lifetime specifications.
+    pub fn from_spaces_by_properties<'o>(
+        objects: Box<
+            (dyn Iterator<
+                Item = (
+                    &'o database::Properties,
+                    Vec<(&'o String, Box<dyn Iterator<Item = space::Position> + 'o>)>,
+                ),
+            > + 'o),
+        >,
+    ) -> impl Iterator<Item = SpatialObject> + 'o {
+        objects.map(|(property, positions_by_spaces)| {
+            let volumes = positions_by_spaces
+                .into_iter()
+                .map(|(space, positions)| {
+                    // We are not using vec![] as we now beforehand we
+                    // will have only one element in the vector, so we
+                    // optimise for space by allocating it as such.
+                    let mut shapes = Vec::with_capacity(1);
+
+                    shapes.push(Shape::Points(
+                        positions
+                            .map(|position| position.into())
+                            .collect::<Vec<_>>(),
+                    ));
+
+                    Volume {
+                        space: space.clone(),
+                        shapes,
+                    }
+                })
+                .collect();
+
+            SpatialObject {
+                properties: (&property).into(),
+                volumes,
+            }
+        })
+    }
+
+    /// Convert a list of properties grouped by space id, then positions
+    /// to a list of Spatial Objects for the rest API v2.
     ///
     /// # Parameters
     ///
     ///  * `list`:
     ///      A list of (**Space Id**, [ ( *Spatial position*, `&Properties` ) ]) tuples.
-    pub fn to_spatial_objects(
-        list: Vec<(&String, Vec<(space::Position, &database::Properties)>)>,
-    ) -> Vec<SpatialObject> {
-        // Filter per Properties, in order to regroup by it, then build a single SpatialObject per Properties.
+    pub fn from_properties_by_spaces<'o>(
+        objects: database::IterObjectsBySpaces<'o>,
+    ) -> impl Iterator<Item = SpatialObject> + 'o {
+        // Filter per Properties, in order to regroup by it, then build
+        // a single SpatialObject per Properties.
         let mut hashmap = HashMap::new();
-        for (space, v) in list {
+        for (space, v) in objects {
             for (position, properties) in v {
                 hashmap
                     .entry(properties)
                     .or_insert_with(HashMap::new)
                     .entry(space)
                     .or_insert_with(Vec::new)
-                    .push(position.into());
+                    .push(position);
             }
         }
 
-        let mut results = vec![];
-        for (properties, v) in hashmap.iter_mut() {
-            let volumes = v
-                .drain()
-                .map(|(space, positions)| Volume {
-                    space: space.clone(),
-                    shapes: vec![Shape::Points(positions)],
+        let results = Box::new(hashmap.into_iter().map(|(property, hm)| {
+            let positions = hm
+                .into_iter()
+                .map(|(space, positions)| {
+                    let positions: database::IterPositions = Box::new(positions.into_iter());
+                    (space, positions)
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
-            results.push(SpatialObject {
-                properties: properties.into(),
-                volumes,
-            });
-        }
+            (property, positions)
+        }));
 
-        results
+        from_spaces_by_properties(results)
     }
 }
 
@@ -410,6 +455,9 @@ pub fn build_index(
         }
 
         properties.append(&mut properties_hm.drain().map(|(_, v)| v).collect::<Vec<_>>());
+
+        // We we use sort_by_key, we get borrow checker errors.
+        #[allow(clippy::unnecessary_sort_by)]
         properties.sort_unstable_by(|a, b| a.id().cmp(b.id()));
 
         space_set_objects.iter_mut().for_each(|object| {
