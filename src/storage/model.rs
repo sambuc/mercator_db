@@ -115,7 +115,7 @@ pub mod v1 {
             for (position, properties) in v {
                 hashmap
                     .entry(properties)
-                    .or_insert_with(|| vec![])
+                    .or_insert_with(Vec::new)
                     .push((space, position));
             }
         }
@@ -226,7 +226,7 @@ pub mod v2 {
                     .entry(properties)
                     .or_insert_with(HashMap::new)
                     .entry(space)
-                    .or_insert_with(|| vec![])
+                    .or_insert_with(Vec::new)
                     .push(position.into());
             }
         }

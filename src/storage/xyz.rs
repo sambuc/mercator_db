@@ -180,9 +180,7 @@ fn convert(string: &str) -> Result<Vec<SpatialObject>, Error> {
                     let (x, y, z) = (x - origin[0], y - origin[1], z - origin[2]);
                     let (x, y, z) = (x * 0.039_062_5, y * 0.039_062_5, z * 0.039_062_5);
 
-                    oids.entry(oid)
-                        .or_insert_with(|| vec![])
-                        .push(vec![x, y, z]);
+                    oids.entry(oid).or_insert_with(Vec::new).push(vec![x, y, z]);
                 }
             }
             _ => trace!("line {:?}, values: {:?}", line, values),
