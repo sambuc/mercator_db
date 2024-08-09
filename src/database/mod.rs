@@ -109,7 +109,7 @@ impl DataBase {
                 list.len()
             ))
         } else {
-            Ok(&list[0])
+            Ok(list[0])
         }
     }
 

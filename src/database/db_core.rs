@@ -174,11 +174,7 @@ impl Core {
 
         // We cannot return less that the total number of individual Ids stored
         // in the index for a full-volume query.
-        let max_elements = if let Some(elem) = max_elements {
-            Some(elem.max(properties.len()))
-        } else {
-            None
-        };
+        let max_elements = max_elements.map(|elem| elem.max(properties.len()));
 
         for space in spaces {
             // Filter the points of this space, and encode them before creating the index.
@@ -194,7 +190,7 @@ impl Core {
                 object.set_position(space.encode(&position)?);
             }
 
-            space_dbs.push(SpaceDB::new(&space, filtered, scales.clone(), max_elements))
+            space_dbs.push(SpaceDB::new(space, filtered, scales.clone(), max_elements))
         }
 
         Ok(Core {
@@ -232,7 +228,7 @@ impl Core {
             // Rebase the point to the requested output space before decoding.
             for (position, _) in list {
                 *position = unified
-                    .decode(&Space::change_base(&position, space, unified)?)?
+                    .decode(&Space::change_base(position, space, unified)?)?
                     .into();
             }
         } else {
@@ -240,7 +236,7 @@ impl Core {
             // respective reference space.
             for (position, _) in list {
                 // Simply decode
-                *position = space.decode(&position)?.into();
+                *position = space.decode(position)?.into();
             }
         }
 
@@ -278,7 +274,7 @@ impl Core {
 
         // Filter positions based on the view port, if present
         let filtered = match parameters.view_port(from) {
-            None => positions.iter().map(|p| p).collect::<Vec<_>>(),
+            None => positions.iter().collect::<Vec<_>>(),
             Some(view_port) => positions
                 .iter()
                 .filter(|&p| view_port.contains(p))
@@ -475,7 +471,7 @@ impl Core {
                         },
                     }
                 })
-                .flat_map(|v| v);
+                .flatten();
 
             let search_volume = if let Some(view) = view_port {
                 search_volume

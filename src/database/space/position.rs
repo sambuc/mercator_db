@@ -19,7 +19,7 @@ use serde::Serialize;
 use super::coordinate::Coordinate;
 
 /// Store a position as efficiently as possible in terms of space.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Position {
     /// 1 dimension positions.
     Position1(Coordinate),
@@ -127,6 +127,11 @@ impl Display for Position {
     }
 }
 
+impl Ord for Position {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
 impl PartialOrd for Position {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // Let's restrict for now to same-length vectors.
@@ -143,7 +148,7 @@ impl PartialOrd for Position {
             return None;
         }
 
-        let ordering = ordering.drain().filter_map(|v| v).collect::<Vec<_>>();
+        let ordering = ordering.drain().flatten().collect::<Vec<_>>();
         match ordering.len() {
             3 => None,
             2 => {
@@ -356,14 +361,14 @@ impl<'s> From<&'s Position> for Vec<&'s Coordinate> {
     fn from(position: &'s Position) -> Self {
         match position {
             Position::Position1(coordinate) => vec![coordinate],
-            Position::Position2(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position3(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position4(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position5(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position6(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position7(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::Position8(coordinates) => coordinates.iter().map(|c| c).collect(),
-            Position::PositionN(coordinates) => coordinates.iter().map(|c| c).collect(),
+            Position::Position2(coordinates) => coordinates.iter().collect(),
+            Position::Position3(coordinates) => coordinates.iter().collect(),
+            Position::Position4(coordinates) => coordinates.iter().collect(),
+            Position::Position5(coordinates) => coordinates.iter().collect(),
+            Position::Position6(coordinates) => coordinates.iter().collect(),
+            Position::Position7(coordinates) => coordinates.iter().collect(),
+            Position::Position8(coordinates) => coordinates.iter().collect(),
+            Position::PositionN(coordinates) => coordinates.iter().collect(),
         }
     }
 }

@@ -206,10 +206,10 @@ impl From<u64> for Coordinate {
         // Slight syntax hack, as exclusive ranges are not yet available.
         // cf: https://github.com/rust-lang/rust/issues/37854
         match v {
-            _ if v <= u64::from(std::u8::MAX) => Coordinate::CoordinateU8(v as u8),
-            _ if v <= u64::from(std::u16::MAX) => Coordinate::CoordinateU16(v as u16),
-            _ if v <= u64::from(std::u32::MAX) => Coordinate::CoordinateU32(v as u32),
-            _ => Coordinate::CoordinateU64(v as u64),
+            _ if v <= u64::from(u8::MAX) => Coordinate::CoordinateU8(v as u8),
+            _ if v <= u64::from(u16::MAX) => Coordinate::CoordinateU16(v as u16),
+            _ if v <= u64::from(u32::MAX) => Coordinate::CoordinateU32(v as u32),
+            _ => Coordinate::CoordinateU64(v),
             /*_ => {
                 panic!("Out of range {} > {}", v, std::u64::MAX);
             } */

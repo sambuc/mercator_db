@@ -84,8 +84,8 @@ impl CoordinateSystem {
         match self {
             CoordinateSystem::Universe { .. } => {
                 for _ in 0..self.dimensions() {
-                    low.push(std::f64::MIN);
-                    high.push(std::f64::MAX);
+                    low.push(f64::MIN);
+                    high.push(f64::MAX);
                 }
             }
             CoordinateSystem::AffineSystem { axes, .. } => {
