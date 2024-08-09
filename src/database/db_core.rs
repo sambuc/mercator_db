@@ -176,11 +176,7 @@ impl Core {
 
         // We cannot return less that the total number of individual Ids stored
         // in the index for a full-volume query.
-        let max_elements = if let Some(elem) = max_elements {
-            Some(elem.max(properties.len()))
-        } else {
-            None
-        };
+        let max_elements = max_elements.map(|elem| elem.max(properties.len()));
 
         for space in spaces {
             // Filter the points of this space, and encode them before creating the index.
@@ -196,7 +192,7 @@ impl Core {
                 object.set_position(space.encode(&position)?);
             }
 
-            space_dbs.push(SpaceDB::new(&space, filtered, scales.clone(), max_elements))
+            space_dbs.push(SpaceDB::new(space, filtered, scales.clone(), max_elements))
         }
 
         Ok(Core {
@@ -504,7 +500,7 @@ impl Core {
                         },
                     }
                 })
-                .flat_map(|v| v);
+                .flatten();
 
             // Select based on the volume, and filter out the label position themselves.
             for s in &self.space_db {

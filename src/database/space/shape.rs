@@ -276,7 +276,7 @@ impl Shape {
     /// Compute the volume.
     pub fn volume(&self) -> f64 {
         match self {
-            Shape::Point(_) => std::f64::EPSILON, // Smallest non-zero volume possible
+            Shape::Point(_) => f64::EPSILON, // Smallest non-zero volume possible
             Shape::BoundingBox(low, high) => {
                 let mut volume = 1.0;
 

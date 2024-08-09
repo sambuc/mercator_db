@@ -220,13 +220,13 @@ pub mod v2 {
     pub fn from_spaces_by_properties<'o>(
         objects: Box<
             (dyn Iterator<
-                Item = (
+                Item=(
                     &'o database::Properties,
-                    Vec<(&'o String, Box<dyn Iterator<Item = space::Position> + 'o>)>,
+                    Vec<(&'o String, Box<dyn Iterator<Item=space::Position> + 'o>)>,
                 ),
             > + 'o),
         >,
-    ) -> impl Iterator<Item = SpatialObject> + 'o {
+    ) -> impl Iterator<Item=SpatialObject> + 'o {
         objects.map(|(property, positions_by_spaces)| {
             let volumes = positions_by_spaces
                 .into_iter()
@@ -234,13 +234,10 @@ pub mod v2 {
                     // We are not using vec![] as we now beforehand we
                     // will have only one element in the vector, so we
                     // optimise for space by allocating it as such.
-                    let mut shapes = Vec::with_capacity(1);
-
-                    shapes.push(Shape::Points(
-                        positions
-                            .map(|position| position.into())
-                            .collect::<Vec<_>>(),
-                    ));
+                    let shapes = vec![
+                        Shape::Points(positions.map(|position|
+                            position.into()).collect::<Vec<_>>())
+                    ];
 
                     Volume {
                         space: space.clone(),
@@ -263,9 +260,9 @@ pub mod v2 {
     ///
     ///  * `list`:
     ///      A list of (**Space Id**, [ ( *Spatial position*, `&Properties` ) ]) tuples.
-    pub fn from_properties_by_spaces<'o>(
-        objects: database::IterObjectsBySpaces<'o>,
-    ) -> impl Iterator<Item = SpatialObject> + 'o {
+    pub fn from_properties_by_spaces(
+        objects: database::IterObjectsBySpaces<'_>,
+    ) -> impl Iterator<Item=SpatialObject> + '_ {
         // Filter per Properties, in order to regroup by it, then build
         // a single SpatialObject per Properties.
         let mut hashmap = HashMap::new();

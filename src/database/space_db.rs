@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -79,7 +80,7 @@ impl SpaceDB {
                     .collect();
 
                 // Make sure we do not shift more position than available
-                let shift = if count >= 31 { 31 } else { count as u32 };
+                let shift: u32 = if count >= 31 { 31 } else { count.try_into().unwrap() };
                 indices.push((
                     SpaceSetIndex::new(space_objects.iter(), DIMENSIONS, CELL_BITS),
                     vec![power.0, power.0, power.0],

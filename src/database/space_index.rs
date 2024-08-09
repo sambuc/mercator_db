@@ -218,7 +218,7 @@ impl SpaceIndex {
                 // then add the condition of the radius as we are working within
                 // a sphere.
                 let results = self
-                    .find_range(&lower, &higher)
+                    .find_range(lower, higher)
                     .filter(move |(position, _)| (position - &center).norm() <= radius.f64());
 
                 Ok(Box::new(results))
